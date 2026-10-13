@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QR Attendance Scanner</title>
+
+  <!-- Pinned QR scanner library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+  <!-- API bridge: lets the page call your Apps Script backend.
+       It replaces google.script.run so the rest of the code works unchanged. -->
+  <script>
+    const API_URL = "https://script.google.com/macros/s/AKfycbwT_ZCUF53KhDEQotPwHFVG9nPShqFSV8102pMOwyASeSrdx_TEyBWmcdXqMAQwoaHu/exec";
+
+    function callApi(action, args) {
+      return fetch(API_URL, {
+        method: "POST",
+        // text/plain avoids a CORS preflight, which Apps Script cannot answer
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: action, args: args })
+      })
+      .then(function (response) { return response.json(); })
+      .then(function (json) {
+        if (!json.ok) {
+          throw new Error(json.error || "Request failed.");
+        }
+        return json.data;
+      });
+    }
+
+    window.google = {
+      script: {
+        get run() {
+          let onSuccess = function () {};
+          let onFailure = function () {};
+
+          const proxy = new Proxy({}, {
+            get: function (target, name) {
+              if (name === "withSuccessHandler") {
+                return function (fn) { onSuccess = fn; return proxy; };
+              }
+              if (name === "withFailureHandler") {
+                return function (fn) { onFailure = fn; return proxy; };
+              }
+              return function () {
+                const args = Array.prototype.slice.call(arguments);
+                callApi(String(name), args)
+                  .then(onSuccess)
+                  .catch(onFailure);
+              };
+            }
+          });
+
+          return proxy;
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: #f2f5f9;
+      color: #172033;
+      font-family: Arial, sans-serif;
+    }
+
+    .app {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 22px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      font-size: 24px;
+      margin: 0 0 10px;
+    }
+
+    p {
+      line-height: 1.5;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 14px 0 7px;
+    }
+
+    input,
+    select,
+    button {
+      width: 100%;
+      min-height: 46px;
+      padding: 12px;
+      border-radius: 9px;
+      font-size: 16px;
+    }
+
+    input,
+    select {
+      border: 1px solid #cbd3df;
+      background: #fff;
+      color: #172033;
+    }
+
+    button {
+      border: 0;
+      background: #194579;
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: wait;
+    }
+
+    .secondary {
+      background: #e7edf5;
+      color: #17365f;
+    }
+
+    .mode-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 18px 0;
+    }
+
+    .mode-buttons button {
+      margin: 0;
+    }
+
+    .mode-buttons .selected {
+      background: #17365f;
+      color: #fff;
+    }
+
+    .mode-buttons .unselected {
+      background: #e7edf5;
+      color: #17365f;
+    }
+
+    .section {
+      border-top: 1px solid #e4e8ef;
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+
+    #reader {
+      width: 100%;
+      margin-top: 12px;
+    }
+
+    #reader video {
+      border-radius: 10px;
+    }
+
+    /* Manual reference: PRE- + date + registration number */
+    .reference-input {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-top: 7px;
+      width: 100%;
+    }
+
+    .reference-input .prefix,
+    .reference-separator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      background: #e7edf5;
+      border: 1px solid #cbd3df;
+      font-weight: bold;
+      color: #17365f;
+      flex-shrink: 0;
+    }
+
+    .reference-input .prefix {
+      border-right: 0;
+      border-radius: 9px 0 0 9px;
+    }
+
+    .reference-separator {
+      border-left: 0;
+      border-right: 0;
+      padding: 0 5px;
+    }
+
+    .reference-input input {
+      flex: 1;
+      width: 50%;
+      min-width: 0;
+      margin: 0;
+      padding: 10px 5px;
+      border-radius: 0;
+      text-align: center;
+    }
+
+    #referenceNumber {
+      border-radius: 0 9px 9px 0;
+    }
+
+    #result {
+      display: none;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+      margin-top: 18px;
+      padding: 15px;
+      border-radius: 10px;
+      line-height: 1.55;
+    }
+
+    .present {
+      display: block !important;
+      background: #e3f6e9;
+    }
+
+    .duplicate {
+      display: block !important;
+      background: #fff0cd;
+    }
+
+    .error {
+      display: block !important;
+      background: #ffe5e5;
+    }
+
+    .info {
+      display: block !important;
+      background: #e8f0fc;
+    }
+
+    .status {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: #596579;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 380px) {
+      .app {
+        padding: 16px;
+      }
+
+      .reference-input .prefix {
+        padding: 0 7px;
+      }
+
+      .reference-input input {
+        font-size: 14px;
+        padding: 8px 3px;
+      }
+
+      .reference-separator {
+        padding: 0 3px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="app">
+    <h1>QR Attendance Scanner</h1>
+
+    <p>
+      Enter your name and staff PIN first. Then choose camera scanning,
+      photo scanning, or manual reference entry.
+    </p>
+
+    <!-- STEP 1: STAFF NAME + PIN -->
+    <section id="pinSection">
+      <label for="staffName">Your Name</label>
+
+      <input
+        id="staffName"
+        type="text"
+        placeholder="Attendance staff name"
+        autocomplete="name"
+      >
+
+      <label for="pin">Staff PIN</label>
+
+      <input
+        id="pin"
+        type="password"
+        placeholder="Enter staff PIN"
+        autocomplete="current-password"
+      >
+
+      <button
+        id="validatePinButton"
+        type="button"
+        onclick="validateStaffPinUI()"
+      >
+        Validate PIN
+      </button>
+    </section>
+
+    <!-- STEP 2: HIDDEN UNTIL PIN IS VALIDATED -->
+    <div id="attendanceSection" class="hidden">
+
+      <div class="mode-buttons">
+        <button
+          id="cameraMode"
+          class="selected"
+          type="button"
+          onclick="showMode('camera')"
+        >
+          Camera Scan
+        </button>
+
+        <button
+          id="manualMode"
+          class="unselected"
+          type="button"
+          onclick="showMode('manual')"
+        >
+          Manual Entry
+        </button>
+      </div>
+
+      <!-- CAMERA SCAN -->
+      <section id="cameraSection">
+        <p><strong>Camera check-in</strong></p>
+
+        <p class="small">
+          Allow camera access when prompted. If live scanning fails,
+          take a photo of the QR code below or switch to Manual Entry.
+        </p>
+
+        <label for="cameraSelect">Choose camera</label>
+
+        <select id="cameraSelect">
+          <option value="">Select a camera</option>
+        </select>
+
+        <button
+          id="cameraButton"
+          type="button"
+          onclick="startScanner()"
+        >
+          Start Camera
+        </button>
+
+        <div id="reader"></div>
+
+        <button
+          id="stopButton"
+          class="secondary hidden"
+          type="button"
+          onclick="stopScanner()"
+        >
+          Stop Camera
+        </button>
+
+        <!-- PHOTO FALLBACK -->
+        <div class="section">
+          <p class="small">
+            <strong>Camera blocked?</strong> Take a photo of the QR code instead:
+          </p>
+
+          <input
+            id="qrPhoto"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onchange="scanPhoto(this)"
+          >
+
+          <div id="fileReader" style="display:none"></div>
+        </div>
+      </section>
+
+      <!-- MANUAL ENTRY -->
+      <section id="manualSection" class="section hidden">
+        <p><strong>Manual check-in</strong></p>
+
+        <label>Registration Reference Number</label>
+
+        <div class="reference-input">
+          <span class="prefix">PRE-</span>
+
+          <input
+            id="referenceDate"
+            type="text"
+            inputmode="numeric"
+            maxlength="8"
+            placeholder="YYYYMMDD"
+            aria-label="Registration date"
+            autocomplete="off"
+          >
+
+          <span class="reference-separator">-</span>
+
+          <input
+            id="referenceNumber"
+            type="text"
+            inputmode="numeric"
+            maxlength="4"
+            placeholder="0001"
+            aria-label="Registration number"
+            autocomplete="off"
+          >
+        </div>
+
+        <p class="small">
+          Enter the 8-digit date and the 4-digit registration number
+          separately. Example: date 20261010, number 0003.
+        </p>
+
+        <button
+          id="checkInButton"
+          type="button"
+          onclick="manualCheckIn()"
+        >
+          Check In Participant
+        </button>
+      </section>
+
+      <button
+        id="logoutButton"
+        class="secondary"
+        type="button"
+        onclick="lockAttendance()"
+      >
+        Lock Attendance
+      </button>
+    </div>
+
+    <!-- RESULT -->
+    <div id="result" role="status" aria-live="polite"></div>
+
+    <button
+      id="nextButton"
+      class="secondary hidden"
+      type="button"
+      onclick="scanNext()"
+    >
+      Ready for Next Participant
+    </button>
+
+    <p class="small">
+      Verified check-ins are saved to Attendance Log with the arrival
+      time. Duplicate check-ins are blocked.
+    </p>
+  </main>
+
+  <script>
+    let scanner = null;
+    let scannerRunning = false;
+    let scanHandled = false;
+    let requestPending = false;
+    let staffPinValidated = false;
+    let activeMode = "camera";
+
+    function getPin() {
+      return document.getElementById("pin").value.trim();
+    }
+
+    function getStaffName() {
+      return document.getElementById("staffName").value.trim();
+    }
+
+    function showResult(type, title, details) {
+      const box = document.getElementById("result");
+
+      box.className = type;
+      box.style.display = "block";
+      box.replaceChildren();
+
+      const heading = document.createElement("div");
+      heading.className = "status";
+      heading.textContent = title;
+      box.appendChild(heading);
+
+      if (details) {
+        const content = document.createElement("div");
+        content.style.whiteSpace = "pre-line";
+        content.textContent = details;
+        box.appendChild(content);
+      }
+
+      if (navigator.vibrate && (type === "present" || type === "duplicate" || type === "error")) {
+        navigator.vibrate(type === "present" ? 100 : [100, 60, 100]);
+      }
+    }
+
+    function participantDetails(data) {
+      if (!data || !data.participant) {
+        return "";
+      }
+
+      const p = data.participant;
+
+      return [
+        "Name: " + (p.fullName || "—"),
+        "Student ID: " + (p.studentId || "—"),
+        "Year & Section: " + (p.yearSection || "—"),
+        "Reference: " + (p.referenceNumber || "—"),
+        "Arrival: " + (data.arrivalTime || "—")
+      ].join("\n");
+    }
+
+    // Validate staff PIN with the server before unlocking attendance.
+    function validateStaffPinUI() {
+      const pin = getPin();
+
+      if (!getStaffName()) {
+        showResult(
+          "error",
+          "Name required",
+          "Enter your name first."
+        );
+        return;
+      }
+
+      if (!pin) {
+        showResult(
+          "error",
+          "PIN required",
+          "Enter your staff PIN first."
+        );
+        return;
+      }
+
+      const button = document.getElementById("validatePinButton");
+      button.disabled = true;
+      button.textContent = "Validating...";
+
+      google.script.run
+        .withSuccessHandler(function(isValid) {
+          button.disabled = false;
+          button.textContent = "Validate PIN";
+
+          if (isValid !== true) {
+            staffPinValidated = false;
+
+            document.getElementById("attendanceSection")
+              .classList.add("hidden");
+
+            showResult(
+              "error",
+              "Invalid staff PIN",
+              "Please enter the correct PIN to access attendance check-in."
+            );
+            return;
+          }
+
+          staffPinValidated = true;
+
+          document.getElementById("attendanceSection")
+            .classList.remove("hidden");
+
+          showResult(
+            "present",
+            "PIN verified successfully",
+            "You can now choose Camera Scan or Manual Entry."
+          );
+
+          showMode("camera");
+        })
+        .withFailureHandler(function(error) {
+          button.disabled = false;
+          button.textContent = "Validate PIN";
+
+          showResult(
+            "error",
+            "Validation failed",
+            error && error.message
+              ? error.message
+              : "Unable to validate PIN. Please try again."
+          );
+        })
+        .validateStaffPin(pin);
+    }
+
+    async function showMode(mode) {
+      if (!staffPinValidated || requestPending) {
+        return;
+      }
+
+      activeMode = mode;
+
+      document.getElementById("cameraSection")
+        .classList.toggle("hidden", mode !== "camera");
+
+      document.getElementById("manualSection")
+        .classList.toggle("hidden", mode !== "manual");
+
+      document.getElementById("cameraMode").className =
+        mode === "camera" ? "selected" : "unselected";
+
+      document.getElementById("manualMode").className =
+        mode === "manual" ? "selected" : "unselected";
+
+      document.getElementById("nextButton")
+        .classList.add("hidden");
+
+      if (mode === "manual") {
+        await stopScanner();
+        document.getElementById("referenceDate").focus();
+      } else {
+        await loadCameras();
+      }
+    }
+
+    async function loadCameras() {
+      const select = document.getElementById("cameraSelect");
+      select.replaceChildren();
+
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select a camera";
+      select.appendChild(placeholder);
+
+      try {
+        if (typeof Html5Qrcode === "undefined") {
+          throw new Error(
+            "Scanner library did not load. Check your internet connection."
+          );
+        }
+
+        const cameras = await Html5Qrcode.getCameras();
+
+        if (!cameras || cameras.length === 0) {
+          throw new Error("No camera was reported by the browser.");
+        }
+
+        cameras.forEach(function(camera, index) {
+          const option = document.createElement("option");
+          option.value = camera.id;
+          option.textContent =
+            camera.label || ("Camera " + (index + 1));
+          select.appendChild(option);
+        });
+
+        const rearIndex = cameras.findIndex(function(camera) {
+          return /back|rear|environment/i.test(camera.label || "");
+        });
+
+        select.selectedIndex = rearIndex >= 0 ? rearIndex + 1 : 1;
+
+      } catch (error) {
+        showResult(
+          "error",
+          "Camera unavailable",
+          (error && error.message ? error.message : String(error)) +
+          "\nUse the photo option or Manual Entry."
+        );
+      }
+    }
+
+    async function startScanner() {
+      if (!staffPinValidated) {
+        showResult(
+          "error",
+          "Access denied",
+          "Validate your staff PIN before starting the camera."
+        );
+        return;
+      }
+
+      if (requestPending || scannerRunning) {
+        return;
+      }
+
+      if (!getPin()) {
+        await lockAttendance();
+        showResult("error", "PIN required", "Please validate your PIN again.");
+        return;
+      }
+
+      if (typeof Html5Qrcode === "undefined") {
+        showResult(
+          "error",
+          "Scanner library unavailable",
+          "Check your internet connection or use Manual Entry."
+        );
+        return;
+      }
+
+      let cameraId = document.getElementById("cameraSelect").value;
+
+      if (!cameraId) {
+        await loadCameras();
+        cameraId = document.getElementById("cameraSelect").value;
+      }
+
+      // If no camera could be listed, still try the rear camera directly.
+      const cameraConfig = cameraId
+        ? cameraId
+        : { facingMode: "environment" };
+
+      document.getElementById("cameraButton").disabled = true;
+
+      try {
+        if (!scanner) {
+          scanner = new Html5Qrcode("reader");
+        }
+
+        await scanner.start(
+          cameraConfig,
+          {
+            fps: 10,
+            qrbox: { width: 240, height: 240 }
+          },
+          onScanSuccess,
+          function() {}
+        );
+
+        scannerRunning = true;
+
+        document.getElementById("stopButton")
+          .classList.remove("hidden");
+
+        showResult(
+          "info",
+          "Scanner ready",
+          "Point the camera at the registration QR code."
+        );
+
+      } catch (error) {
+        scannerRunning = false;
+        document.getElementById("cameraButton").disabled = false;
+
+        showResult(
+          "error",
+          "Could not start camera",
+          (error && error.message ? error.message : String(error)) +
+          "\nTry another camera, take a photo of the QR code, or use Manual Entry."
+        );
+      }
+    }
+
+    async function stopScanner() {
+      if (scanner && scannerRunning) {
+        try {
+          await scanner.stop();
+        } catch (error) {
+          // Camera may already be stopped.
+        }
+      }
+
+      scannerRunning = false;
+
+      document.getElementById("cameraButton").disabled = false;
+
+      document.getElementById("stopButton")
+        .classList.add("hidden");
+    }
+
+    async function onScanSuccess(decodedText) {
+      if (scanHandled || requestPending || !staffPinValidated) {
+        return;
+      }
+
+      // Ignore repeat callbacks while the camera is stopping.
+      scanHandled = true;
+      await stopScanner();
+      scanHandled = false;
+
+      // submitCheckIn sets requestPending itself.
+      submitCheckIn(decodedText);
+    }
+
+    // Photo fallback: reads a QR code from a photo taken with the phone camera.
+    async function scanPhoto(input) {
+      if (!staffPinValidated || requestPending || !input.files.length) {
+        return;
+      }
+
+      const file = input.files[0];
+      input.value = "";
+
+      try {
+        await stopScanner();
+
+        const fileScanner = new Html5Qrcode("fileReader");
+        const text = await fileScanner.scanFile(file, false);
+
+        submitCheckIn(text);
+      } catch (error) {
+        showResult(
+          "error",
+          "No QR code found",
+          "Retake the photo closer and in good light, or use Manual Entry."
+        );
+      }
+    }
+
+    function manualCheckIn() {
+      if (!staffPinValidated) {
+        showResult(
+          "error",
+          "Access denied",
+          "Validate your staff PIN before manual check-in."
+        );
+        return;
+      }
+
+      if (requestPending) {
+        return;
+      }
+
+      const datePart = document.getElementById("referenceDate")
+        .value.trim();
+
+      const numberPart = document.getElementById("referenceNumber")
+        .value.trim();
+
+      if (!/^\d{8}$/.test(datePart)) {
+        showResult(
+          "error",
+          "Invalid date",
+          "Enter the date as 8 digits, for example 20261010."
+        );
+        return;
+      }
+
+      if (!/^\d{4}$/.test(numberPart)) {
+        showResult(
+          "error",
+          "Invalid registration number",
+          "Enter the 4-digit registration number, for example 0003."
+        );
+        return;
+      }
+
+      // Validate that the date is a real calendar date.
+      const year = Number(datePart.slice(0, 4));
+      const month = Number(datePart.slice(4, 6));
+      const day = Number(datePart.slice(6, 8));
+
+      const date = new Date(Date.UTC(year, month - 1, day));
+
+      if (
+        date.getUTCFullYear() !== year ||
+        date.getUTCMonth() !== month - 1 ||
+        date.getUTCDate() !== day
+      ) {
+        showResult(
+          "error",
+          "Invalid date",
+          "Please enter a valid calendar date."
+        );
+        return;
+      }
+
+      const reference = "PRE-" + datePart + "-" + numberPart;
+
+      submitCheckIn(reference);
+    }
+
+    function submitCheckIn(reference) {
+      if (!staffPinValidated || requestPending) {
+        return;
+      }
+
+      if (!getPin()) {
+        lockAttendance();
+        showResult("error", "PIN required", "Please validate your PIN again.");
+        return;
+      }
+
+      requestPending = true;
+
+      document.getElementById("cameraButton").disabled = true;
+      document.getElementById("checkInButton").disabled = true;
+
+      document.getElementById("nextButton")
+        .classList.add("hidden");
+
+      showResult(
+        "info",
+        "Verifying participant…",
+        "Please wait."
+      );
+
+      google.script.run
+        .withSuccessHandler(function(data) {
+          requestPending = false;
+
+          document.getElementById("cameraButton").disabled = false;
+          document.getElementById("checkInButton").disabled = false;
+
+          if (data && data.status === "PRESENT" && data.success) {
+            showResult(
+              "present",
+              "PRESENT — Check-in successful!",
+              participantDetails(data)
+            );
+
+            document.getElementById("referenceDate").value = "";
+            document.getElementById("referenceNumber").value = "";
+
+          } else if (data && data.status === "DUPLICATE") {
+            showResult(
+              "duplicate",
+              "ALREADY CHECKED IN",
+              participantDetails(data)
+            );
+
+          } else {
+            showResult(
+              "error",
+              "Check-in unsuccessful",
+              (data && data.message
+                ? data.message
+                : "Please try again.") +
+              (data && data.participant
+                ? "\n" + participantDetails(data)
+                : "")
+            );
+          }
+
+          document.getElementById("nextButton")
+            .classList.remove("hidden");
+        })
+        .withFailureHandler(function(error) {
+          requestPending = false;
+
+          document.getElementById("cameraButton").disabled = false;
+          document.getElementById("checkInButton").disabled = false;
+
+          showResult(
+            "error",
+            "System error",
+            error && error.message
+              ? error.message
+              : "Unable to contact the attendance system."
+          );
+
+          document.getElementById("nextButton")
+            .classList.remove("hidden");
+        })
+        .checkInParticipant(reference, getPin(), getStaffName());
+    }
+
+    async function scanNext() {
+      if (!staffPinValidated || requestPending) {
+        return;
+      }
+
+      document.getElementById("nextButton")
+        .classList.add("hidden");
+
+      document.getElementById("referenceDate").value = "";
+      document.getElementById("referenceNumber").value = "";
+
+      if (activeMode === "camera") {
+        await startScanner();
+      } else {
+        showResult(
+          "info",
+          "Ready for next participant",
+          "Enter the date and registration number."
+        );
+
+        document.getElementById("referenceDate").focus();
+      }
+    }
+
+    async function lockAttendance() {
+      if (requestPending) {
+        return;
+      }
+
+      await stopScanner();
+
+      staffPinValidated = false;
+
+      document.getElementById("pin").value = "";
+      document.getElementById("staffName").value = "";
+      document.getElementById("attendanceSection")
+        .classList.add("hidden");
+
+      document.getElementById("referenceDate").value = "";
+      document.getElementById("referenceNumber").value = "";
+
+      document.getElementById("validatePinButton").textContent =
+        "Validate PIN";
+
+      document.getElementById("nextButton")
+        .classList.add("hidden");
+
+      showResult(
+        "info",
+        "Attendance locked",
+        "Enter your name and PIN to continue."
+      );
+    }
+
+    // Press Enter in either manual field to submit.
+    ["referenceDate", "referenceNumber"].forEach(function(id) {
+      document.getElementById(id).addEventListener("keydown", function(event) {
+        if (event.key === "Enter") {
+          manualCheckIn();
+        }
+      });
+    });
+  </script>
+</body>
+</html>
