@@ -152,6 +152,51 @@
       color: #17365f;
     }
 
+    .action-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 8px 0 12px;
+    }
+
+    .action-buttons button {
+      margin: 0;
+      min-height: 54px;
+    }
+
+    .action-buttons .selected-checkin {
+      background: #194579;
+      color: #fff;
+    }
+
+    .action-buttons .selected-food {
+      background: #b45309;
+      color: #fff;
+    }
+
+    .action-buttons .unselected {
+      background: #e7edf5;
+      color: #17365f;
+    }
+
+    .action-banner {
+      padding: 10px 12px;
+      border-radius: 9px;
+      font-weight: bold;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .action-banner.checkin {
+      background: #e8f0fc;
+      color: #194579;
+    }
+
+    .action-banner.food {
+      background: #ffedd5;
+      color: #9a3412;
+    }
+
     .section {
       border-top: 1px solid #e4e8ef;
       padding-top: 16px;
@@ -321,6 +366,31 @@
     <!-- STEP 2: HIDDEN UNTIL PIN IS VALIDATED -->
     <div id="attendanceSection" class="hidden">
 
+      <!-- TASK: ATTENDANCE OR FOOD -->
+      <div class="action-buttons">
+        <button
+          id="actionCheckin"
+          class="selected-checkin"
+          type="button"
+          onclick="setAction('checkin')"
+        >
+          Attendance<br>Check-In
+        </button>
+
+        <button
+          id="actionFood"
+          class="unselected"
+          type="button"
+          onclick="setAction('food')"
+        >
+          Food<br>Distribution
+        </button>
+      </div>
+
+      <div id="actionBanner" class="action-banner checkin">
+        Current task: ATTENDANCE CHECK-IN
+      </div>
+
       <div class="mode-buttons">
         <button
           id="cameraMode"
@@ -472,8 +542,8 @@
     </button>
 
     <p class="small">
-      Verified check-ins are saved to Attendance Log with the arrival
-      time. Duplicate check-ins are blocked.
+      Check-ins and food distribution are saved to the Attendance Log.
+      Duplicate check-ins and duplicate food claims are blocked.
     </p>
   </main>
 
@@ -484,6 +554,40 @@
     let requestPending = false;
     let staffPinValidated = false;
     let activeMode = "camera";
+    let activeAction = "checkin";   // "checkin" or "food"
+
+    // Switch between attendance check-in and food distribution.
+    function setAction(action) {
+      if (requestPending) {
+        return;
+      }
+
+      activeAction = action === "food" ? "food" : "checkin";
+
+      document.getElementById("actionCheckin").className =
+        activeAction === "checkin" ? "selected-checkin" : "unselected";
+
+      document.getElementById("actionFood").className =
+        activeAction === "food" ? "selected-food" : "unselected";
+
+      const banner = document.getElementById("actionBanner");
+      banner.className = "action-banner " + activeAction;
+      banner.textContent = activeAction === "food"
+        ? "Current task: FOOD DISTRIBUTION"
+        : "Current task: ATTENDANCE CHECK-IN";
+
+      document.getElementById("nextButton").classList.add("hidden");
+
+      showResult(
+        "info",
+        activeAction === "food"
+          ? "Food distribution mode"
+          : "Attendance check-in mode",
+        activeAction === "food"
+          ? "Scan the QR code of a participant who already checked in."
+          : "Scan the registration QR code to record attendance."
+      );
+    }
 
     // ---------- Sound (generated in the browser, no files needed) ----------
     let audioCtx = null;
@@ -595,7 +699,12 @@
         "Year & Section: " + (p.yearSection || "—"),
         "Reference: " + (p.referenceNumber || "—"),
         "Arrival: " + (data.arrivalTime || "—")
-      ].join("\n");
+      ].concat(
+        data.foodTime
+          ? ["Food distributed: " + data.foodTime +
+             (data.foodBy ? " (by " + data.foodBy + ")" : "")]
+          : []
+      ).join("\n");
     }
 
     // Validate staff PIN with the server before unlocking attendance.
@@ -992,21 +1101,27 @@
           document.getElementById("cameraButton").disabled = false;
           document.getElementById("checkInButton").disabled = false;
 
-          if (data && data.status === "PRESENT" && data.success) {
+          if (data && data.success) {
             showResult(
               "present",
-              "PRESENT — Check-in successful!",
+              data.status === "FOOD_GIVEN"
+                ? "FOOD DISTRIBUTED — OK to give food!"
+                : "PRESENT — Check-in successful!",
               participantDetails(data)
             );
 
             document.getElementById("referenceDate").value = "";
             document.getElementById("referenceNumber").value = "";
 
-          } else if (data && data.status === "DUPLICATE") {
+          } else if (data &&
+                     (data.status === "DUPLICATE" ||
+                      data.status === "FOOD_ALREADY")) {
             beep("duplicate");
             showResult(
               "duplicate",
-              "ALREADY CHECKED IN",
+              data.status === "FOOD_ALREADY"
+                ? "FOOD ALREADY CLAIMED — do not give again"
+                : "ALREADY CHECKED IN",
               participantDetails(data)
             );
 
@@ -1014,7 +1129,11 @@
             beep("error");
             showResult(
               "error",
-              "Check-in unsuccessful",
+              data && data.status === "NOT_CHECKED_IN"
+                ? "NOT CHECKED IN YET"
+                : (activeAction === "food"
+                    ? "Food distribution unsuccessful"
+                    : "Check-in unsuccessful"),
               (data && data.message
                 ? data.message
                 : "Please try again.") +
@@ -1045,7 +1164,9 @@
           document.getElementById("nextButton")
             .classList.remove("hidden");
         })
-        .checkInParticipant(reference, getPin(), getStaffName());
+        [activeAction === "food" ? "distributeFood" : "checkInParticipant"](
+          reference, getPin(), getStaffName()
+        );
     }
 
     async function scanNext() {
