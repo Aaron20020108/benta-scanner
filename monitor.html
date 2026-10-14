@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Event Live Monitor</title>
+
+  <style>
+    :root {
+      --bg: #f2f5f9;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #596579;
+      --line: #e4e8ef;
+      --primary: #194579;
+      --blue: #194579;
+      --green: #15803d;
+      --amber: #b45309;
+      --teal: #0f766e;
+      --red: #b91c1c;
+      --track: #e4e8ef;
+      --shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1623;
+        --card: #182235;
+        --text: #e8edf5;
+        --muted: #9aa7bd;
+        --line: #2a374d;
+        --primary: #5b9bd8;
+        --blue: #6aa8e6;
+        --green: #4ade80;
+        --amber: #fbbf24;
+        --teal: #2dd4bf;
+        --red: #f87171;
+        --track: #2a374d;
+        --shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(22px, 4vw, 32px);
+    }
+
+    .status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    .dot {
+      width: 11px;
+      height: 11px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+
+    .dot.live {
+      background: var(--green);
+      animation: pulse 1.6s infinite;
+    }
+
+    .dot.bad {
+      background: var(--red);
+    }
+
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.55); }
+      70%  { box-shadow: 0 0 0 9px rgba(21, 128, 61, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0); }
+    }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 20px;
+    }
+
+    input,
+    button {
+      font-size: 16px;
+      border-radius: 9px;
+      padding: 12px;
+      min-height: 46px;
+    }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+    }
+
+    button {
+      border: 0;
+      background: var(--primary);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: normal;
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin: 12px 0 6px;
+    }
+
+    
+
+    #message {
+      margin-top: 12px;
+      color: var(--red);
+      min-height: 20px;
+      font-size: 14px;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ---- Stat cards ---- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .stat {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px 14px;
+      border-top: 6px solid var(--blue);
+    }
+
+    .stat .label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .stat .value {
+      font-size: clamp(34px, 6vw, 56px);
+      font-weight: bold;
+      line-height: 1.1;
+      margin: 8px 0 4px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat .hint {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .stat.registered { border-top-color: var(--blue); }
+    .stat.registered .value { color: var(--blue); }
+    .stat.checkedin { border-top-color: var(--green); }
+    .stat.checkedin .value { color: var(--green); }
+    .stat.waiting { border-top-color: var(--amber); }
+    .stat.waiting .value { color: var(--amber); }
+    .stat.food { border-top-color: var(--teal); }
+    .stat.food .value { color: var(--teal); }
+    .stat.nofood { border-top-color: var(--red); }
+    .stat.nofood .value { color: var(--red); }
+
+    @media (max-width: 900px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stat.registered { grid-column: 1 / -1; }
+    }
+
+    /* ---- Progress bars ---- */
+    .progress-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    @media (max-width: 700px) {
+      .progress-grid { grid-template-columns: 1fr; }
+    }
+
+    .progress-title {
+      display: flex;
+      justify-content: space-between;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+
+    .bar {
+      height: 16px;
+      background: var(--track);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+
+    .bar > div {
+      height: 100%;
+      width: 0%;
+      border-radius: 99px;
+      transition: width 0.6s ease;
+    }
+
+    .bar.green > div { background: var(--green); }
+    .bar.teal > div { background: var(--teal); }
+
+    .progress-note {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ---- Lists ---- */
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 700px) {
+      .tabs { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .tab {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: bold;
+      padding: 10px 8px;
+      min-height: 44px;
+      font-size: 14px;
+    }
+
+    .tab.active {
+      background: var(--primary);
+      color: #fff;
+      border-color: var(--primary);
+    }
+
+    .tab .n {
+      font-weight: normal;
+      opacity: 0.85;
+    }
+
+    .list-tools {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .list {
+      max-height: 480px;
+      overflow-y: auto;
+      border-top: 1px solid var(--line);
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 4px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .row .who {
+      font-weight: bold;
+      overflow-wrap: anywhere;
+    }
+
+    .row .meta {
+      font-size: 13px;
+      color: var(--muted);
+      overflow-wrap: anywhere;
+    }
+
+    .row .when {
+      font-size: 13px;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .empty {
+      padding: 24px 4px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .footnote {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 12px;
+    }
+  
+    .error-banner {
+      background: #fee2e2;
+      color: #7f1d1d;
+      border-radius: 12px;
+      padding: 14px 16px;
+      margin-bottom: 14px;
+      line-height: 1.5;
+      font-size: 15px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .error-banner {
+        background: #3b1a1a;
+        color: #fecaca;
+      }
+    }
+
+    .locked {
+      max-width: 420px;
+      margin: 8px auto;
+      text-align: center;
+    }
+
+    .locked p {
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .lock-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .lock-row button {
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Event Live Monitor</h1>
+
+      <div class="status">
+        <span id="dot" class="dot"></span>
+        <span id="statusText">Connecting...</span>
+        <button id="pauseButton" class="secondary" type="button" onclick="togglePause()">Pause</button>
+      </div>
+    </header>
+
+    <div id="errorBanner" class="error-banner hidden" role="alert"></div>
+
+    <main id="dashboard">
+      <div class="stats">
+        <div class="stat registered">
+          <div class="label">Registered</div>
+          <div class="value" id="nRegistered">&ndash;</div>
+          <div class="hint">Total pre-registrations</div>
+        </div>
+
+        <div class="stat checkedin">
+          <div class="label">Checked in</div>
+          <div class="value" id="nCheckedIn">&ndash;</div>
+          <div class="hint">Already arrived</div>
+        </div>
+
+        <div class="stat waiting">
+          <div class="label">Waiting</div>
+          <div class="value" id="nWaiting">&ndash;</div>
+          <div class="hint">Registered, not yet arrived</div>
+        </div>
+
+        <div class="stat food">
+          <div class="label">Food provided</div>
+          <div class="value" id="nFoodGiven">&ndash;</div>
+          <div class="hint">Already received food</div>
+        </div>
+
+        <div class="stat nofood">
+          <div class="label">Food not yet</div>
+          <div class="value" id="nFoodNotYet">&ndash;</div>
+          <div class="hint">Checked in, no food yet</div>
+        </div>
+      </div>
+
+      <div class="progress-grid">
+        <div class="card">
+          <div class="progress-title">
+            <span>Check-in progress</span>
+            <span id="pctCheckin">0%</span>
+          </div>
+          <div class="bar green"><div id="barCheckin"></div></div>
+          <div class="progress-note" id="noteCheckin">Waiting for data...</div>
+        </div>
+
+        <div class="card">
+          <div class="progress-title">
+            <span>Food distribution progress</span>
+            <span id="pctFood">0%</span>
+          </div>
+          <div class="bar teal"><div id="barFood"></div></div>
+          <div class="progress-note" id="noteFood">Waiting for data...</div>
+        </div>
+      </div>
+
+      <!-- PARTICIPANT LISTS (staff PIN required) -->
+      <div class="card">
+        <div id="lockedPanel" class="locked">
+          <h2 style="margin-top:0;">Participant lists</h2>
+          <p>Enter the staff PIN to see names, student IDs and who is waiting.</p>
+
+          <label for="pin" style="text-align:left;">Staff PIN</label>
+          <div class="lock-row">
+            <input id="pin" type="password" placeholder="Enter staff PIN" autocomplete="current-password">
+            <button id="unlockButton" type="button" onclick="unlockLists()">Unlock</button>
+          </div>
+
+          <div id="message" role="alert"></div>
+        </div>
+
+        <div id="listsPanel" class="hidden">
+          <div class="tabs" id="tabs">
+            <button class="tab active" type="button" data-tab="waiting">Waiting <span class="n" id="tabWaiting"></span></button>
+            <button class="tab" type="button" data-tab="checkedin">Checked in <span class="n" id="tabCheckedIn"></span></button>
+            <button class="tab" type="button" data-tab="foodgiven">Food provided <span class="n" id="tabFoodGiven"></span></button>
+            <button class="tab" type="button" data-tab="foodnotyet">Food not yet <span class="n" id="tabFoodNotYet"></span></button>
+          </div>
+
+          <div class="list-tools">
+            <input id="search" type="search" placeholder="Search name, student ID, section or reference">
+            <button id="lockButton" class="secondary" type="button" onclick="lockLists()">Lock</button>
+          </div>
+
+          <div id="list" class="list"></div>
+          <div class="footnote" id="listNote"></div>
+        </div>
+      </div>
+
+      <p class="footnote">
+        Numbers update automatically every 10 seconds. "Food not yet" counts only participants who
+        have already checked in; people still waiting are not included.
+      </p>
+    </main>
+  </div>
+
+  <script>
+    // Your Apps Script web app link (same one the scanner uses).
+    const API_URL = "https://script.google.com/macros/s/AKfycbzJeJ9dP4JvQdXXrDoi_4L2AImgt6gh1_LF0gd5ao7ne3O2OuQjflHzVYvbsyiwle2fug/exec";
+
+    const REFRESH_MS = 10000;
+    const MAX_ROWS = 300;
+
+    let pin = "";            // set only after the lists are unlocked
+    let timer = null;
+    let paused = false;
+    let loading = false;
+    let data = null;
+    let activeTab = "waiting";
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function callApi(action, args) {
+      return fetch(API_URL, {
+        method: "POST",
+        // text/plain avoids a CORS preflight, which Apps Script cannot answer
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: action, args: args })
+      })
+      .then(function (response) { return response.json(); })
+      .then(function (json) {
+        if (!json.ok) {
+          throw new Error(json.error || "Request failed.");
+        }
+        return json.data;
+      });
+    }
+
+    function setStatus(kind, text) {
+      $("dot").className = "dot" + (kind ? " " + kind : "");
+      $("statusText").textContent = text;
+    }
+
+    function showError(message) {
+      let text = message || "Unknown problem.";
+
+      if (/unknown action/i.test(text)) {
+        text = "The scoreboard needs the newest Code.gs. In Apps Script choose " +
+          "Deploy > Manage deployments > Edit (pencil) > Version: New version > Deploy.";
+      } else if (/failed to fetch|networkerror|load failed/i.test(text)) {
+        text = "Cannot reach the Apps Script link. Check your internet connection, " +
+          "that the deployment access is set to \"Anyone\", and that API_URL in this page is correct.";
+      }
+
+      const banner = $("errorBanner");
+      banner.textContent = text;
+      banner.classList.remove("hidden");
+      setStatus("bad", "Problem loading numbers");
+    }
+
+    function hideError() {
+      $("errorBanner").classList.add("hidden");
+    }
+
+    // ---------- Refresh ----------
+    function startTimer() {
+      if (timer) {
+        clearInterval(timer);
+      }
+
+      timer = setInterval(function () {
+        if (!paused) {
+          refresh();
+        }
+      }, REFRESH_MS);
+    }
+
+    function togglePause() {
+      paused = !paused;
+      $("pauseButton").textContent = paused ? "Resume" : "Pause";
+      setStatus(paused ? "" : "live", paused ? "Paused" : "Live");
+
+      if (!paused) {
+        refresh();
+      }
+    }
+
+    function refresh() {
+      if (loading) {
+        return;
+      }
+
+      loading = true;
+
+      // Numbers only until the lists are unlocked with the PIN.
+      const request = pin
+        ? callApi("getStats", [pin])
+        : callApi("getCounts", []);
+
+      request
+        .then(function (result) {
+          loading = false;
+
+          if (!result || !result.success) {
+            const message = (result && result.message) || "Update failed";
+
+            if (pin && /pin/i.test(message)) {
+              lockLists();
+            }
+
+            showError(message);
+            return;
+          }
+
+          hideError();
+          applyData(result);
+        })
+        .catch(function (error) {
+          loading = false;
+          // Keep showing the last good numbers.
+          showError(error && error.message);
+        });
+    }
+
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && !paused) {
+        refresh();
+      }
+    });
+
+    // ---------- Unlock / lock the participant lists ----------
+    function unlockLists() {
+      const entered = $("pin").value.trim();
+
+      if (!entered) {
+        $("message").textContent = "Enter the staff PIN.";
+        return;
+      }
+
+      $("unlockButton").disabled = true;
+      $("unlockButton").textContent = "Checking...";
+      $("message").textContent = "";
+
+      callApi("getStats", [entered])
+        .then(function (result) {
+          $("unlockButton").disabled = false;
+          $("unlockButton").textContent = "Unlock";
+
+          if (!result || !result.success) {
+            $("message").textContent =
+              (result && result.message) || "Could not unlock the lists.";
+            return;
+          }
+
+          pin = entered;
+          try { sessionStorage.setItem("monitorPin", pin); } catch (e) {}
+
+          $("lockedPanel").classList.add("hidden");
+          $("listsPanel").classList.remove("hidden");
+
+          hideError();
+          applyData(result);
+        })
+        .catch(function (error) {
+          $("unlockButton").disabled = false;
+          $("unlockButton").textContent = "Unlock";
+          $("message").textContent = (error && error.message) || "Connection problem.";
+        });
+    }
+
+    function lockLists() {
+      pin = "";
+      try { sessionStorage.removeItem("monitorPin"); } catch (e) {}
+
+      $("pin").value = "";
+      $("message").textContent = "";
+      $("lockedPanel").classList.remove("hidden");
+      $("listsPanel").classList.add("hidden");
+    }
+
+    // ---------- Rendering ----------
+    function pct(part, whole) {
+      return whole > 0 ? Math.round((part / whole) * 100) : 0;
+    }
+
+    function applyData(result) {
+      data = result;
+      const c = result.counts;
+
+      $("nRegistered").textContent = c.registered;
+      $("nCheckedIn").textContent = c.checkedIn;
+      $("nWaiting").textContent = c.waiting;
+      $("nFoodGiven").textContent = c.foodGiven;
+      $("nFoodNotYet").textContent = c.foodNotYet;
+
+      const checkinPct = pct(c.checkedIn, c.registered);
+      $("pctCheckin").textContent = checkinPct + "%";
+      $("barCheckin").style.width = checkinPct + "%";
+      $("noteCheckin").textContent =
+        c.checkedIn + " of " + c.registered + " registered participants";
+
+      const foodPct = pct(c.foodGiven, c.checkedIn);
+      $("pctFood").textContent = foodPct + "%";
+      $("barFood").style.width = foodPct + "%";
+      $("noteFood").textContent =
+        c.foodGiven + " of " + c.checkedIn + " checked-in participants";
+
+      $("tabWaiting").textContent = "(" + c.waiting + ")";
+      $("tabCheckedIn").textContent = "(" + c.checkedIn + ")";
+      $("tabFoodGiven").textContent = "(" + c.foodGiven + ")";
+      $("tabFoodNotYet").textContent = "(" + c.foodNotYet + ")";
+
+      if (!paused) {
+        setStatus("live", "Live - updated " + (result.generatedAt || "").slice(11));
+      }
+
+      if (pin && result.waiting) {
+        renderList();
+      }
+    }
+
+    function currentRows() {
+      if (!data || !data.waiting) {
+        return [];
+      }
+
+      if (activeTab === "waiting") {
+        return data.waiting.map(function (p) {
+          return { p: p, when: "Not yet arrived" };
+        });
+      }
+
+      if (activeTab === "checkedin") {
+        return data.foodNotYet.concat(data.foodGiven)
+          .sort(function (a, b) {
+            return String(b.arrival).localeCompare(String(a.arrival));
+          })
+          .map(function (p) {
+            return { p: p, when: "Arrived " + (p.arrival || "") };
+          });
+      }
+
+      if (activeTab === "foodgiven") {
+        return data.foodGiven.map(function (p) {
+          return { p: p, when: "Food " + (p.foodAt || "") };
+        });
+      }
+
+      return data.foodNotYet.map(function (p) {
+        return { p: p, when: "Arrived " + (p.arrival || "") };
+      });
+    }
+
+    function renderList() {
+      const query = $("search").value.trim().toLowerCase();
+      const list = $("list");
+      list.replaceChildren();
+
+      let rows = currentRows();
+
+      if (query) {
+        rows = rows.filter(function (r) {
+          const p = r.p;
+          return [p.name, p.studentId, p.section, p.ref]
+            .join(" ").toLowerCase().indexOf(query) !== -1;
+        });
+      }
+
+      if (rows.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = query ? "No matching participants." : "Nobody in this list.";
+        list.appendChild(empty);
+        $("listNote").textContent = "";
+        return;
+      }
+
+      rows.slice(0, MAX_ROWS).forEach(function (r) {
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const left = document.createElement("div");
+
+        const who = document.createElement("div");
+        who.className = "who";
+        who.textContent = r.p.name || "(no name)";
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = [r.p.studentId, r.p.section, r.p.ref]
+          .filter(Boolean).join("  |  ");
+
+        left.appendChild(who);
+        left.appendChild(meta);
+
+        const when = document.createElement("div");
+        when.className = "when";
+        when.textContent = r.when;
+
+        row.appendChild(left);
+        row.appendChild(when);
+        list.appendChild(row);
+      });
+
+      $("listNote").textContent = rows.length > MAX_ROWS
+        ? "Showing the first " + MAX_ROWS + " of " + rows.length + ". Use search to find others."
+        : rows.length + " participant" + (rows.length === 1 ? "" : "s") + " shown.";
+    }
+
+    $("tabs").addEventListener("click", function (event) {
+      const button = event.target.closest(".tab");
+      if (!button) {
+        return;
+      }
+
+      activeTab = button.getAttribute("data-tab");
+
+      document.querySelectorAll(".tab").forEach(function (t) {
+        t.classList.toggle("active", t === button);
+      });
+
+      renderList();
+    });
+
+    $("search").addEventListener("input", renderList);
+
+    $("pin").addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        unlockLists();
+      }
+    });
+
+    // ---------- Start ----------
+    // Numbers load immediately, no PIN needed.
+    refresh();
+    startTimer();
+
+    // Restore unlocked lists after a page refresh (same browser tab).
+    (function restore() {
+      try {
+        const saved = sessionStorage.getItem("monitorPin");
+        if (saved) {
+          $("pin").value = saved;
+          unlockLists();
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>
