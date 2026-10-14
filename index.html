@@ -154,14 +154,22 @@
 
     .action-buttons {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
       margin: 8px 0 12px;
     }
 
     .action-buttons button {
       margin: 0;
-      min-height: 54px;
+      min-height: 58px;
+      padding: 8px 4px;
+      font-size: 14px;
+      line-height: 1.25;
+    }
+
+    .action-buttons .selected-checkout {
+      background: #6d28d9;
+      color: #fff;
     }
 
     .action-buttons .selected-checkin {
@@ -195,6 +203,11 @@
     .action-banner.food {
       background: #ffedd5;
       color: #9a3412;
+    }
+
+    .action-banner.checkout {
+      background: #ede9fe;
+      color: #5b21b6;
     }
 
     .section {
@@ -385,6 +398,15 @@
         >
           Food<br>Distribution
         </button>
+
+        <button
+          id="actionCheckout"
+          class="unselected"
+          type="button"
+          onclick="setAction('checkout')"
+        >
+          Check-Out<br>(Leaving)
+        </button>
       </div>
 
       <div id="actionBanner" class="action-banner checkin">
@@ -542,8 +564,8 @@
     </button>
 
     <p class="small">
-      Check-ins and food distribution are saved to the Attendance Log.
-      Duplicate check-ins and duplicate food claims are blocked.
+      Check-ins, food distribution and check-outs are saved to the Attendance Log.
+      Duplicate check-ins, food claims and check-outs are blocked.
     </p>
   </main>
 
@@ -554,38 +576,59 @@
     let requestPending = false;
     let staffPinValidated = false;
     let activeMode = "camera";
-    let activeAction = "checkin";   // "checkin" or "food"
+    let activeAction = "checkin";   // "checkin", "food" or "checkout"
 
-    // Switch between attendance check-in and food distribution.
+    // The three tasks the scanner can do.
+    const ACTIONS = {
+      checkin: {
+        button: "actionCheckin",
+        selected: "selected-checkin",
+        banner: "Current task: ATTENDANCE CHECK-IN",
+        title: "Attendance check-in mode",
+        text: "Scan the registration QR code to record attendance.",
+        fn: "checkInParticipant"
+      },
+      food: {
+        button: "actionFood",
+        selected: "selected-food",
+        banner: "Current task: FOOD DISTRIBUTION",
+        title: "Food distribution mode",
+        text: "Scan the QR code of a participant who already checked in.",
+        fn: "distributeFood"
+      },
+      checkout: {
+        button: "actionCheckout",
+        selected: "selected-checkout",
+        banner: "Current task: CHECK-OUT (LEAVING)",
+        title: "Check-out mode",
+        text: "Scan the QR code of a participant who is leaving the venue.",
+        fn: "checkOutParticipant"
+      }
+    };
+
+    // Switch between check-in, food distribution and check-out.
     function setAction(action) {
       if (requestPending) {
         return;
       }
 
-      activeAction = action === "food" ? "food" : "checkin";
+      activeAction = ACTIONS[action] ? action : "checkin";
 
-      document.getElementById("actionCheckin").className =
-        activeAction === "checkin" ? "selected-checkin" : "unselected";
-
-      document.getElementById("actionFood").className =
-        activeAction === "food" ? "selected-food" : "unselected";
+      Object.keys(ACTIONS).forEach(function(key) {
+        document.getElementById(ACTIONS[key].button).className =
+          key === activeAction ? ACTIONS[key].selected : "unselected";
+      });
 
       const banner = document.getElementById("actionBanner");
       banner.className = "action-banner " + activeAction;
-      banner.textContent = activeAction === "food"
-        ? "Current task: FOOD DISTRIBUTION"
-        : "Current task: ATTENDANCE CHECK-IN";
+      banner.textContent = ACTIONS[activeAction].banner;
 
       document.getElementById("nextButton").classList.add("hidden");
 
       showResult(
         "info",
-        activeAction === "food"
-          ? "Food distribution mode"
-          : "Attendance check-in mode",
-        activeAction === "food"
-          ? "Scan the QR code of a participant who already checked in."
-          : "Scan the registration QR code to record attendance."
+        ACTIONS[activeAction].title,
+        ACTIONS[activeAction].text
       );
     }
 
@@ -703,8 +746,31 @@
         data.foodTime
           ? ["Food distributed: " + data.foodTime +
              (data.foodBy ? " (by " + data.foodBy + ")" : "")]
+          : [],
+        data.checkoutTime
+          ? ["Checked out: " + data.checkoutTime]
+          : [],
+        typeof data.inside === "number"
+          ? [insideLine(data)]
           : []
       ).join("\n");
+    }
+
+    // "Inside venue now: 42" (venue capacity is shown on the monitor only).
+    function insideLine(data) {
+      return "Inside venue now: " + data.inside;
+    }
+
+    function successTitle(data) {
+      if (data.status === "FOOD_GIVEN") {
+        return "FOOD DISTRIBUTED — OK to give food!";
+      }
+
+      if (data.status === "CHECKED_OUT") {
+        return "CHECKED OUT — Thank you!";
+      }
+
+      return "PRESENT — Check-in successful!";
     }
 
     // Validate staff PIN with the server before unlocking attendance.
@@ -1104,9 +1170,7 @@
           if (data && data.success) {
             showResult(
               "present",
-              data.status === "FOOD_GIVEN"
-                ? "FOOD DISTRIBUTED — OK to give food!"
-                : "PRESENT — Check-in successful!",
+              successTitle(data),
               participantDetails(data)
             );
 
@@ -1115,13 +1179,16 @@
 
           } else if (data &&
                      (data.status === "DUPLICATE" ||
-                      data.status === "FOOD_ALREADY")) {
+                      data.status === "FOOD_ALREADY" ||
+                      data.status === "CHECKOUT_ALREADY")) {
             beep("duplicate");
             showResult(
               "duplicate",
               data.status === "FOOD_ALREADY"
                 ? "FOOD ALREADY CLAIMED — do not give again"
-                : "ALREADY CHECKED IN",
+                : (data.status === "CHECKOUT_ALREADY"
+                    ? "ALREADY CHECKED OUT"
+                    : "ALREADY CHECKED IN"),
               participantDetails(data)
             );
 
@@ -1130,10 +1197,14 @@
             showResult(
               "error",
               data && data.status === "NOT_CHECKED_IN"
-                ? "NOT CHECKED IN YET"
+                ? (activeAction === "checkout"
+                    ? "NEVER CHECKED IN"
+                    : "NOT CHECKED IN YET")
                 : (activeAction === "food"
                     ? "Food distribution unsuccessful"
-                    : "Check-in unsuccessful"),
+                    : (activeAction === "checkout"
+                        ? "Check-out unsuccessful"
+                        : "Check-in unsuccessful")),
               (data && data.message
                 ? data.message
                 : "Please try again.") +
@@ -1164,7 +1235,7 @@
           document.getElementById("nextButton")
             .classList.remove("hidden");
         })
-        [activeAction === "food" ? "distributeFood" : "checkInParticipant"](
+        [ACTIONS[activeAction].fn](
           reference, getPin(), getStaffName()
         );
     }
