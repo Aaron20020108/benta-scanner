@@ -505,11 +505,11 @@
       }
     }
 
-    function playTone(frequency, startTime, duration, volume) {
+    function playTone(frequency, startTime, duration, volume, waveType) {
       const oscillator = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
 
-      oscillator.type = "sine";
+      oscillator.type = waveType || "sine";
       oscillator.frequency.value = frequency;
 
       // Quick fade in/out avoids clicking sounds.
@@ -523,7 +523,11 @@
       oscillator.stop(startTime + duration + 0.02);
     }
 
-    // kind: "scan" | "success" | "duplicate" | "error"
+    // Cashier-style scanner sounds.
+    // kind: "scan" | "duplicate" | "error"
+    //   scan      = one short, sharp, high beep (like a supermarket scanner)
+    //   duplicate = two quick beeps
+    //   error     = one longer low buzz
     function beep(kind) {
       try {
         const toggle = document.getElementById("soundToggle");
@@ -534,15 +538,12 @@
         const t = audioCtx.currentTime;
 
         if (kind === "scan") {
-          playTone(1000, t, 0.12, 0.35);
-        } else if (kind === "success") {
-          playTone(880, t, 0.12, 0.35);
-          playTone(1320, t + 0.14, 0.2, 0.35);
+          playTone(2300, t, 0.11, 0.22, "square");
         } else if (kind === "duplicate") {
-          playTone(600, t, 0.15, 0.35);
-          playTone(600, t + 0.22, 0.15, 0.35);
-        } else {
-          playTone(220, t, 0.4, 0.35);
+          playTone(2300, t, 0.08, 0.22, "square");
+          playTone(2300, t + 0.16, 0.08, 0.22, "square");
+        } else if (kind === "error") {
+          playTone(300, t, 0.4, 0.22, "square");
         }
       } catch (error) {
         // Sound is optional; ignore failures.
@@ -955,6 +956,7 @@
 
       const reference = "PRE-" + datePart + "-" + numberPart;
 
+      beep("scan");
       submitCheckIn(reference);
     }
 
@@ -991,7 +993,6 @@
           document.getElementById("checkInButton").disabled = false;
 
           if (data && data.status === "PRESENT" && data.success) {
-            beep("success");
             showResult(
               "present",
               "PRESENT — Check-in successful!",
