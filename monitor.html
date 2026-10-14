@@ -260,7 +260,7 @@
     /* ---- Lists ---- */
     .tabs {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(3, 1fr);
       gap: 8px;
       margin-bottom: 12px;
     }
@@ -377,6 +377,119 @@
     .lock-row button {
       white-space: nowrap;
     }
+  
+    /* ---- Venue capacity ---- */
+    .venue {
+      border-left: 10px solid var(--green);
+      margin-bottom: 14px;
+    }
+
+    .venue.none { border-left-color: var(--muted); }
+    .venue.warn { border-left-color: var(--amber); }
+    .venue.full,
+    .venue.over {
+      border-left-color: var(--red);
+      animation: alertGlow 1.2s infinite;
+    }
+
+    @keyframes alertGlow {
+      0%, 100% { box-shadow: var(--shadow); }
+      50%      { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0.35); }
+    }
+
+    .venue-main {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .venue .label {
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .venue-number {
+      font-size: clamp(54px, 11vw, 100px);
+      font-weight: bold;
+      line-height: 1.05;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .venue.ok .venue-number { color: var(--green); }
+    .venue.warn .venue-number { color: var(--amber); }
+    .venue.full .venue-number,
+    .venue.over .venue-number { color: var(--red); }
+
+    .venue-number .cap {
+      font-size: clamp(24px, 4.5vw, 42px);
+      color: var(--muted);
+    }
+
+    .chip {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-weight: bold;
+      background: var(--track);
+      color: var(--text);
+    }
+
+    .venue.ok .chip { background: rgba(21, 128, 61, 0.18); color: var(--green); }
+    .venue.warn .chip { background: rgba(180, 83, 9, 0.18); color: var(--amber); }
+    .venue.full .chip,
+    .venue.over .chip { background: rgba(185, 28, 28, 0.2); color: var(--red); }
+
+    .venue-side {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 26px;
+    }
+
+    .venue-side .mid {
+      font-size: clamp(28px, 5vw, 44px);
+      font-weight: bold;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .venue-bar {
+      margin-top: 16px;
+      height: 20px;
+    }
+
+    .venue.ok .venue-bar > div { background: var(--green); }
+    .venue.warn .venue-bar > div { background: var(--amber); }
+    .venue.full .venue-bar > div,
+    .venue.over .venue-bar > div { background: var(--red); }
+    .venue.none .venue-bar > div { background: var(--muted); }
+
+    .capacity-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .capacity-row label {
+      margin: 0;
+    }
+
+    .capacity-row input {
+      width: 140px;
+    }
+
+    #capacityMessage {
+      font-size: 14px;
+      color: var(--muted);
+    }
   </style>
 </head>
 
@@ -395,6 +508,37 @@
     <div id="errorBanner" class="error-banner hidden" role="alert"></div>
 
     <main id="dashboard">
+      <!-- VENUE CAPACITY -->
+      <div id="venueCard" class="card venue none">
+        <div class="venue-main">
+          <div>
+            <div class="label">Inside the venue now</div>
+            <div class="venue-number">
+              <span id="nInside">&ndash;</span><span class="cap"> / <span id="nCapacity">&ndash;</span></span>
+            </div>
+            <div id="venueStatus" class="chip">Waiting for data...</div>
+          </div>
+
+          <div class="venue-side">
+            <div>
+              <div class="label">Left the event</div>
+              <div class="mid" id="nLeft">&ndash;</div>
+            </div>
+            <div>
+              <div class="label">Peak inside</div>
+              <div class="mid" id="nPeak">&ndash;</div>
+            </div>
+            <div>
+              <div class="label">Spaces left</div>
+              <div class="mid" id="nSpaces">&ndash;</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bar venue-bar"><div id="barVenue"></div></div>
+        <div class="progress-note" id="noteVenue">Waiting for data...</div>
+      </div>
+
       <div class="stats">
         <div class="stat registered">
           <div class="label">Registered</div>
@@ -463,9 +607,18 @@
         </div>
 
         <div id="listsPanel" class="hidden">
+          <div class="capacity-row">
+            <label for="capacityInput">Venue capacity</label>
+            <input id="capacityInput" type="number" min="0" step="1" placeholder="e.g. 150">
+            <button id="capacityButton" type="button" onclick="saveCapacity()">Save</button>
+            <span id="capacityMessage"></span>
+          </div>
+
           <div class="tabs" id="tabs">
             <button class="tab active" type="button" data-tab="waiting">Waiting <span class="n" id="tabWaiting"></span></button>
             <button class="tab" type="button" data-tab="checkedin">Checked in <span class="n" id="tabCheckedIn"></span></button>
+            <button class="tab" type="button" data-tab="inside">Inside now <span class="n" id="tabInside"></span></button>
+            <button class="tab" type="button" data-tab="left">Left <span class="n" id="tabLeft"></span></button>
             <button class="tab" type="button" data-tab="foodgiven">Food provided <span class="n" id="tabFoodGiven"></span></button>
             <button class="tab" type="button" data-tab="foodnotyet">Food not yet <span class="n" id="tabFoodNotYet"></span></button>
           </div>
@@ -481,8 +634,9 @@
       </div>
 
       <p class="footnote">
-        Numbers update automatically every 10 seconds. "Food not yet" counts only participants who
-        have already checked in; people still waiting are not included.
+        Numbers update automatically every 10 seconds. "Inside" means checked in and not yet checked
+        out. "Food not yet" counts only participants who have already checked in; people still
+        waiting are not included.
       </p>
     </main>
   </div>
@@ -695,6 +849,8 @@
       $("tabFoodGiven").textContent = "(" + c.foodGiven + ")";
       $("tabFoodNotYet").textContent = "(" + c.foodNotYet + ")";
 
+      renderVenue(c);
+
       if (!paused) {
         setStatus("live", "Live - updated " + (result.generatedAt || "").slice(11));
       }
@@ -702,6 +858,107 @@
       if (pin && result.waiting) {
         renderList();
       }
+    }
+
+    // Venue occupancy against capacity.
+    function renderVenue(c) {
+      if (typeof c.inside !== "number") {
+        $("venueStatus").textContent = "Update needed";
+        $("noteVenue").textContent =
+          "Deploy the newest Code.gs (Deploy > Manage deployments > New version) to see who is inside.";
+        return;
+      }
+
+      const capacity = c.capacity > 0 ? c.capacity : 0;
+      let state = "none";
+      let label = "No capacity limit set";
+      let spaces = "\u2013";
+      let percent = 0;
+
+      if (capacity > 0) {
+        percent = Math.round((c.inside / capacity) * 100);
+        spaces = Math.max(capacity - c.inside, 0);
+
+        if (c.inside > capacity) {
+          state = "over";
+          label = "OVER CAPACITY by " + (c.inside - capacity);
+        } else if (c.inside === capacity) {
+          state = "full";
+          label = "VENUE FULL";
+        } else if (percent >= 90) {
+          state = "warn";
+          label = "Almost full";
+        } else {
+          state = "ok";
+          label = "Space available";
+        }
+      }
+
+      $("venueCard").className = "card venue " + state;
+      $("nInside").textContent = c.inside;
+      $("nCapacity").textContent = capacity > 0 ? capacity : "no limit";
+      $("nLeft").textContent = c.left;
+      $("nPeak").textContent = c.peak;
+      $("nSpaces").textContent = spaces;
+      $("venueStatus").textContent = label;
+      $("barVenue").style.width = Math.min(percent, 100) + "%";
+      let note = capacity > 0
+        ? percent + "% of the venue capacity is in use"
+        : "No limit is set. Unlock the lists below with the staff PIN to set the venue capacity.";
+
+      // Registration is not limited, so registrations can exceed the venue.
+      if (capacity > 0 && c.registered > capacity) {
+        note += ". Registered (" + c.registered + ") is above the venue capacity (" +
+          capacity + "): spaces free up as people check out.";
+      }
+
+      $("noteVenue").textContent = note;
+
+      $("tabInside").textContent = "(" + c.inside + ")";
+      $("tabLeft").textContent = "(" + c.left + ")";
+
+      document.title =
+        (state === "full" || state === "over" ? "FULL - " : "") + "Event Live Monitor";
+
+      if (document.activeElement !== $("capacityInput")) {
+        $("capacityInput").value = capacity > 0 ? capacity : "";
+      }
+    }
+
+    // Staff saves the venue capacity (PIN required).
+    function saveCapacity() {
+      const raw = $("capacityInput").value.trim();
+
+      if (raw === "" || isNaN(Number(raw))) {
+        $("capacityMessage").textContent = "Enter a number (0 removes the limit).";
+        return;
+      }
+
+      $("capacityButton").disabled = true;
+      $("capacityMessage").textContent = "Saving...";
+
+      callApi("setVenueCapacity", [pin, Number(raw)])
+        .then(function (result) {
+          $("capacityButton").disabled = false;
+
+          if (!result || !result.success) {
+            $("capacityMessage").textContent =
+              (result && result.message) || "Could not save the capacity.";
+            return;
+          }
+
+          $("capacityMessage").textContent =
+            result.capacity > 0
+              ? "Saved: capacity is " + result.capacity
+              : "Saved: no capacity limit";
+
+          refresh();
+        })
+        .catch(function (error) {
+          $("capacityButton").disabled = false;
+          $("capacityMessage").textContent =
+            (error && error.message) || "Connection problem.";
+        });
     }
 
     function currentRows() {
@@ -723,6 +980,18 @@
           .map(function (p) {
             return { p: p, when: "Arrived " + (p.arrival || "") };
           });
+      }
+
+      if (activeTab === "inside") {
+        return (data.inside || []).map(function (p) {
+          return { p: p, when: "Arrived " + (p.arrival || "") };
+        });
+      }
+
+      if (activeTab === "left") {
+        return (data.left || []).map(function (p) {
+          return { p: p, when: "Left " + (p.outAt || "") };
+        });
       }
 
       if (activeTab === "foodgiven") {
