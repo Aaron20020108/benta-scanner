@@ -18,6 +18,7 @@
       --amber: #b45309;
       --teal: #0f766e;
       --red: #b91c1c;
+      --purple: #6d28d9;
       --track: #e4e8ef;
       --shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
     }
@@ -35,14 +36,13 @@
         --amber: #fbbf24;
         --teal: #2dd4bf;
         --red: #f87171;
+        --purple: #a78bfa;
         --track: #2a374d;
         --shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
       }
     }
 
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
@@ -52,10 +52,7 @@
       font-family: Arial, sans-serif;
     }
 
-    .wrap {
-      max-width: 1100px;
-      margin: 0 auto;
-    }
+    .wrap { max-width: 1100px; margin: 0 auto; }
 
     header {
       display: flex;
@@ -66,10 +63,8 @@
       margin-bottom: 16px;
     }
 
-    h1 {
-      margin: 0;
-      font-size: clamp(22px, 4vw, 32px);
-    }
+    h1 { margin: 0; font-size: clamp(22px, 4vw, 32px); }
+    h2 { margin: 0 0 4px; font-size: 20px; }
 
     .status {
       display: flex;
@@ -79,21 +74,9 @@
       color: var(--muted);
     }
 
-    .dot {
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: var(--muted);
-    }
-
-    .dot.live {
-      background: var(--green);
-      animation: pulse 1.6s infinite;
-    }
-
-    .dot.bad {
-      background: var(--red);
-    }
+    .dot { width: 11px; height: 11px; border-radius: 50%; background: var(--muted); }
+    .dot.live { background: var(--green); animation: pulse 1.6s infinite; }
+    .dot.bad { background: var(--red); }
 
     @keyframes pulse {
       0%   { box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.55); }
@@ -106,15 +89,10 @@
       border-radius: 16px;
       box-shadow: var(--shadow);
       padding: 20px;
+      margin-bottom: 14px;
     }
 
-    input,
-    button {
-      font-size: 16px;
-      border-radius: 9px;
-      padding: 12px;
-      min-height: 46px;
-    }
+    input, button { font-size: 16px; border-radius: 9px; padding: 12px; min-height: 46px; }
 
     input {
       width: 100%;
@@ -138,208 +116,12 @@
       font-weight: normal;
     }
 
-    button:disabled {
-      opacity: 0.6;
-      cursor: wait;
-    }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    label { display: block; font-weight: bold; margin: 12px 0 6px; }
+    .hidden { display: none !important; }
 
-    label {
-      display: block;
-      font-weight: bold;
-      margin: 12px 0 6px;
-    }
+    .muted { color: var(--muted); }
 
-    
-
-    #message {
-      margin-top: 12px;
-      color: var(--red);
-      min-height: 20px;
-      font-size: 14px;
-    }
-
-    .hidden {
-      display: none !important;
-    }
-
-    /* ---- Stat cards ---- */
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    .stat {
-      background: var(--card);
-      border-radius: 16px;
-      box-shadow: var(--shadow);
-      padding: 16px 14px;
-      border-top: 6px solid var(--blue);
-    }
-
-    .stat .label {
-      font-size: 13px;
-      color: var(--muted);
-      font-weight: bold;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-
-    .stat .value {
-      font-size: clamp(34px, 6vw, 56px);
-      font-weight: bold;
-      line-height: 1.1;
-      margin: 8px 0 4px;
-      font-variant-numeric: tabular-nums;
-    }
-
-    .stat .hint {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .stat.registered { border-top-color: var(--blue); }
-    .stat.registered .value { color: var(--blue); }
-    .stat.checkedin { border-top-color: var(--green); }
-    .stat.checkedin .value { color: var(--green); }
-    .stat.waiting { border-top-color: var(--amber); }
-    .stat.waiting .value { color: var(--amber); }
-    .stat.food { border-top-color: var(--teal); }
-    .stat.food .value { color: var(--teal); }
-    .stat.nofood { border-top-color: var(--red); }
-    .stat.nofood .value { color: var(--red); }
-
-    @media (max-width: 900px) {
-      .stats { grid-template-columns: repeat(2, 1fr); }
-      .stat.registered { grid-column: 1 / -1; }
-    }
-
-    /* ---- Progress bars ---- */
-    .progress-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 14px;
-    }
-
-    @media (max-width: 700px) {
-      .progress-grid { grid-template-columns: 1fr; }
-    }
-
-    .progress-title {
-      display: flex;
-      justify-content: space-between;
-      font-weight: bold;
-      margin-bottom: 8px;
-    }
-
-    .bar {
-      height: 16px;
-      background: var(--track);
-      border-radius: 99px;
-      overflow: hidden;
-    }
-
-    .bar > div {
-      height: 100%;
-      width: 0%;
-      border-radius: 99px;
-      transition: width 0.6s ease;
-    }
-
-    .bar.green > div { background: var(--green); }
-    .bar.teal > div { background: var(--teal); }
-
-    .progress-note {
-      font-size: 13px;
-      color: var(--muted);
-      margin-top: 6px;
-    }
-
-    /* ---- Lists ---- */
-    .tabs {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    @media (max-width: 700px) {
-      .tabs { grid-template-columns: repeat(2, 1fr); }
-    }
-
-    .tab {
-      background: transparent;
-      color: var(--text);
-      border: 1px solid var(--line);
-      font-weight: bold;
-      padding: 10px 8px;
-      min-height: 44px;
-      font-size: 14px;
-    }
-
-    .tab.active {
-      background: var(--primary);
-      color: #fff;
-      border-color: var(--primary);
-    }
-
-    .tab .n {
-      font-weight: normal;
-      opacity: 0.85;
-    }
-
-    .list-tools {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 8px;
-    }
-
-    .list {
-      max-height: 480px;
-      overflow-y: auto;
-      border-top: 1px solid var(--line);
-    }
-
-    .row {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      padding: 10px 4px;
-      border-bottom: 1px solid var(--line);
-    }
-
-    .row .who {
-      font-weight: bold;
-      overflow-wrap: anywhere;
-    }
-
-    .row .meta {
-      font-size: 13px;
-      color: var(--muted);
-      overflow-wrap: anywhere;
-    }
-
-    .row .when {
-      font-size: 13px;
-      color: var(--muted);
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    .empty {
-      padding: 24px 4px;
-      color: var(--muted);
-      text-align: center;
-    }
-
-    .footnote {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 12px;
-    }
-  
     .error-banner {
       background: #fee2e2;
       color: #7f1d1d;
@@ -351,61 +133,23 @@
     }
 
     @media (prefers-color-scheme: dark) {
-      .error-banner {
-        background: #3b1a1a;
-        color: #fecaca;
-      }
+      .error-banner { background: #3b1a1a; color: #fecaca; }
     }
 
-    .locked {
-      max-width: 420px;
-      margin: 8px auto;
-      text-align: center;
-    }
-
-    .locked p {
-      color: var(--muted);
-      line-height: 1.5;
-    }
-
-    .lock-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 8px;
-    }
-
-    .lock-row button {
-      white-space: nowrap;
-    }
-  
     /* ---- Venue capacity ---- */
-    .venue {
-      border-left: 10px solid var(--green);
-      margin-bottom: 14px;
-    }
-
+    .venue { border-left: 10px solid var(--green); }
     .venue.none { border-left-color: var(--muted); }
     .venue.warn { border-left-color: var(--amber); }
-    .venue.full,
-    .venue.over {
-      border-left-color: var(--red);
-      animation: alertGlow 1.2s infinite;
-    }
+    .venue.full, .venue.over { border-left-color: var(--red); animation: alertGlow 1.2s infinite; }
 
     @keyframes alertGlow {
       0%, 100% { box-shadow: var(--shadow); }
       50%      { box-shadow: 0 0 0 6px rgba(185, 28, 28, 0.35); }
     }
 
-    .venue-main {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      align-items: center;
-      justify-content: space-between;
-    }
+    .venue-main { display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between; }
 
-    .venue .label {
+    .label {
       font-size: 13px;
       color: var(--muted);
       font-weight: bold;
@@ -422,13 +166,9 @@
 
     .venue.ok .venue-number { color: var(--green); }
     .venue.warn .venue-number { color: var(--amber); }
-    .venue.full .venue-number,
-    .venue.over .venue-number { color: var(--red); }
+    .venue.full .venue-number, .venue.over .venue-number { color: var(--red); }
 
-    .venue-number .cap {
-      font-size: clamp(24px, 4.5vw, 42px);
-      color: var(--muted);
-    }
+    .cap { font-size: clamp(24px, 4.5vw, 42px); color: var(--muted); font-weight: bold; }
 
     .chip {
       display: inline-block;
@@ -442,31 +182,104 @@
 
     .venue.ok .chip { background: rgba(21, 128, 61, 0.18); color: var(--green); }
     .venue.warn .chip { background: rgba(180, 83, 9, 0.18); color: var(--amber); }
-    .venue.full .chip,
-    .venue.over .chip { background: rgba(185, 28, 28, 0.2); color: var(--red); }
+    .venue.full .chip, .venue.over .chip { background: rgba(185, 28, 28, 0.2); color: var(--red); }
 
-    .venue-side {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 26px;
+    .venue-side { display: flex; flex-wrap: wrap; gap: 26px; }
+
+    .mid { font-size: clamp(28px, 5vw, 44px); font-weight: bold; font-variant-numeric: tabular-nums; }
+
+    .bar { height: 16px; background: var(--track); border-radius: 99px; overflow: hidden; }
+    .bar > div { height: 100%; width: 0%; border-radius: 99px; transition: width 0.6s ease; }
+    .bar.green > div { background: var(--green); }
+    .bar.teal > div { background: var(--teal); }
+    .venue-bar { margin-top: 16px; height: 20px; }
+    .venue.ok .venue-bar > div { background: var(--green); }
+    .venue.warn .venue-bar > div { background: var(--amber); }
+    .venue.full .venue-bar > div, .venue.over .venue-bar > div { background: var(--red); }
+    .venue.none .venue-bar > div { background: var(--muted); }
+
+    .progress-note { font-size: 13px; color: var(--muted); margin-top: 6px; }
+
+    /* ---- Stat cards ---- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 14px;
     }
 
-    .venue-side .mid {
-      font-size: clamp(28px, 5vw, 44px);
+    .stat {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 16px 14px;
+      border-top: 6px solid var(--blue);
+    }
+
+    .stat .value {
+      font-size: clamp(32px, 5vw, 50px);
       font-weight: bold;
+      line-height: 1.1;
+      margin: 8px 0 4px;
       font-variant-numeric: tabular-nums;
     }
 
-    .venue-bar {
-      margin-top: 16px;
-      height: 20px;
+    .stat .value .of { font-size: 0.5em; color: var(--muted); }
+    .stat .hint { font-size: 12px; color: var(--muted); }
+
+    .stat.registered { border-top-color: var(--blue); }
+    .stat.registered .value { color: var(--blue); }
+    .stat.walkin { border-top-color: var(--purple); }
+    .stat.walkin .value { color: var(--purple); }
+    .stat.checkedin { border-top-color: var(--green); }
+    .stat.checkedin .value { color: var(--green); }
+    .stat.waiting { border-top-color: var(--amber); }
+    .stat.waiting .value { color: var(--amber); }
+    .stat.food { border-top-color: var(--teal); }
+    .stat.food .value { color: var(--teal); }
+    .stat.foodleft { border-top-color: var(--teal); }
+    .stat.foodleft .value { color: var(--teal); }
+    .stat.foodleft.low { border-top-color: var(--red); }
+    .stat.foodleft.low .value { color: var(--red); }
+    .stat.nofood { border-top-color: var(--red); }
+    .stat.nofood .value { color: var(--red); }
+
+    .progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+    .progress-grid .card { margin-bottom: 0; }
+    @media (max-width: 700px) { .progress-grid { grid-template-columns: 1fr; } }
+    .progress-title { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 8px; }
+
+    /* ---- Section table ---- */
+    .table-wrap { overflow-x: auto; margin-top: 10px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 640px; }
+
+    th, td {
+      padding: 9px 8px;
+      border-bottom: 1px solid var(--line);
+      text-align: right;
+      font-variant-numeric: tabular-nums;
     }
 
-    .venue.ok .venue-bar > div { background: var(--green); }
-    .venue.warn .venue-bar > div { background: var(--amber); }
-    .venue.full .venue-bar > div,
-    .venue.over .venue-bar > div { background: var(--red); }
-    .venue.none .venue-bar > div { background: var(--muted); }
+    th:first-child, td:first-child { text-align: left; }
+
+    thead th {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      white-space: nowrap;
+    }
+
+    tfoot td { font-weight: bold; border-top: 2px solid var(--line); border-bottom: 0; }
+    td.sec { font-weight: bold; overflow-wrap: anywhere; }
+
+    /* ---- Lists ---- */
+    .locked { max-width: 420px; margin: 8px auto; text-align: center; }
+    .locked p { color: var(--muted); line-height: 1.5; }
+    .lock-row { display: flex; gap: 10px; margin-top: 8px; }
+    .lock-row button { white-space: nowrap; }
+    #message { margin-top: 12px; color: var(--red); min-height: 20px; font-size: 14px; }
 
     .capacity-row {
       display: flex;
@@ -478,18 +291,60 @@
       border-bottom: 1px solid var(--line);
     }
 
-    .capacity-row label {
-      margin: 0;
+    .capacity-row label { margin: 0; }
+    .capacity-row input { width: 140px; }
+    #capacityMessage, #downloadMessage { font-size: 14px; color: var(--muted); }
+
+    .downloads {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--line);
     }
 
-    .capacity-row input {
-      width: 140px;
-    }
+    .downloads .label { width: 100%; }
+    .downloads button { min-height: 42px; font-size: 14px; padding: 10px 14px; }
 
-    #capacityMessage {
+    .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+    @media (max-width: 800px) { .tabs { grid-template-columns: repeat(2, 1fr); } }
+
+    .tab {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: bold;
+      padding: 10px 8px;
+      min-height: 44px;
       font-size: 14px;
-      color: var(--muted);
     }
+
+    .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .tab .n { font-weight: normal; opacity: 0.85; }
+
+    .list-tools { display: flex; gap: 10px; margin-bottom: 8px; }
+    .list { max-height: 480px; overflow-y: auto; border-top: 1px solid var(--line); }
+    .row { display: flex; justify-content: space-between; gap: 12px; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+    .row .who { font-weight: bold; overflow-wrap: anywhere; }
+    .row .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    .row .when { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; }
+
+    .badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 8px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: bold;
+      background: rgba(109, 40, 217, 0.15);
+      color: var(--purple);
+      vertical-align: middle;
+    }
+
+    .empty { padding: 24px 4px; color: var(--muted); text-align: center; }
+    .footnote { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
   </style>
 </head>
 
@@ -508,7 +363,8 @@
     <div id="errorBanner" class="error-banner hidden" role="alert"></div>
 
     <main id="dashboard">
-      <!-- VENUE CAPACITY -->
+
+      <!-- VENUE CAPACITY (200 persons) -->
       <div id="venueCard" class="card venue none">
         <div class="venue-main">
           <div>
@@ -539,17 +395,24 @@
         <div class="progress-note" id="noteVenue">Waiting for data...</div>
       </div>
 
+      <!-- OVERALL COUNTS (pre-registered + walk-in) -->
       <div class="stats">
         <div class="stat registered">
-          <div class="label">Registered</div>
+          <div class="label">Total registered</div>
           <div class="value" id="nRegistered">&ndash;</div>
-          <div class="hint">Total pre-registrations</div>
+          <div class="hint" id="hintRegistered">Pre-registered + walk-in</div>
+        </div>
+
+        <div class="stat walkin">
+          <div class="label">Walk-in registered</div>
+          <div class="value" id="nWalkIn">&ndash;</div>
+          <div class="hint">Included in the total. No free food.</div>
         </div>
 
         <div class="stat checkedin">
           <div class="label">Checked in</div>
           <div class="value" id="nCheckedIn">&ndash;</div>
-          <div class="hint">Already arrived</div>
+          <div class="hint" id="hintCheckedIn">Already arrived</div>
         </div>
 
         <div class="stat waiting">
@@ -560,14 +423,20 @@
 
         <div class="stat food">
           <div class="label">Food provided</div>
-          <div class="value" id="nFoodGiven">&ndash;</div>
-          <div class="hint">Already received food</div>
+          <div class="value"><span id="nFoodGiven">&ndash;</span><span class="of"> / <span id="nFoodLimit">&ndash;</span></span></div>
+          <div class="hint">Free food given out</div>
+        </div>
+
+        <div id="foodLeftCard" class="stat foodleft">
+          <div class="label">Food stock left</div>
+          <div class="value" id="nFoodRemaining">&ndash;</div>
+          <div class="hint">Packs still available</div>
         </div>
 
         <div class="stat nofood">
           <div class="label">Food not yet</div>
           <div class="value" id="nFoodNotYet">&ndash;</div>
-          <div class="hint">Checked in, no food yet</div>
+          <div class="hint">Pre-registered, checked in, no food yet</div>
         </div>
       </div>
 
@@ -583,7 +452,7 @@
 
         <div class="card">
           <div class="progress-title">
-            <span>Food distribution progress</span>
+            <span>Free food stock used</span>
             <span id="pctFood">0%</span>
           </div>
           <div class="bar teal"><div id="barFood"></div></div>
@@ -591,11 +460,45 @@
         </div>
       </div>
 
-      <!-- PARTICIPANT LISTS (staff PIN required) -->
+      <!-- BY SECTION -->
+      <div class="card">
+        <h2>By Year &amp; Section / Other</h2>
+        <div class="muted" style="font-size:13px;">
+          Search a section to count its pre-registered, walk-in, checked-in, inside, left and food numbers.
+        </div>
+
+        <div style="margin-top:12px;">
+          <input id="sectionSearch" type="search" placeholder="Search section, e.g. BSEN 3A or Other">
+        </div>
+
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Section</th>
+                <th>Pre-reg</th>
+                <th>Walk-in</th>
+                <th>Total</th>
+                <th>Checked in</th>
+                <th>Inside now</th>
+                <th>Left</th>
+                <th>Food given</th>
+                <th>Food not yet</th>
+              </tr>
+            </thead>
+            <tbody id="sectionBody"></tbody>
+            <tfoot id="sectionFoot"></tfoot>
+          </table>
+        </div>
+
+        <div class="footnote" id="sectionNote"></div>
+      </div>
+
+      <!-- PARTICIPANT LISTS + DOWNLOADS (staff PIN required) -->
       <div class="card">
         <div id="lockedPanel" class="locked">
-          <h2 style="margin-top:0;">Participant lists</h2>
-          <p>Enter the staff PIN to see names, student IDs and who is waiting.</p>
+          <h2>Participant lists &amp; downloads</h2>
+          <p>Enter the staff PIN to see names, set the venue capacity, and download the attendance and food files.</p>
 
           <label for="pin" style="text-align:left;">Staff PIN</label>
           <div class="lock-row">
@@ -609,9 +512,18 @@
         <div id="listsPanel" class="hidden">
           <div class="capacity-row">
             <label for="capacityInput">Venue capacity</label>
-            <input id="capacityInput" type="number" min="0" step="1" placeholder="e.g. 150">
+            <input id="capacityInput" type="number" min="0" step="1" placeholder="e.g. 200">
             <button id="capacityButton" type="button" onclick="saveCapacity()">Save</button>
             <span id="capacityMessage"></span>
+          </div>
+
+          <div class="downloads">
+            <div class="label">Download files (CSV, opens in Excel or Google Sheets)</div>
+            <button type="button" onclick="downloadFile('attendance')">Attendance (who entered)</button>
+            <button type="button" onclick="downloadFile('food')">Food distributed</button>
+            <button type="button" onclick="downloadFile('left')">Check-outs</button>
+            <button type="button" class="secondary" onclick="downloadFile('all')">All registrants</button>
+            <span id="downloadMessage"></span>
           </div>
 
           <div class="tabs" id="tabs">
@@ -621,6 +533,7 @@
             <button class="tab" type="button" data-tab="left">Left <span class="n" id="tabLeft"></span></button>
             <button class="tab" type="button" data-tab="foodgiven">Food provided <span class="n" id="tabFoodGiven"></span></button>
             <button class="tab" type="button" data-tab="foodnotyet">Food not yet <span class="n" id="tabFoodNotYet"></span></button>
+            <button class="tab" type="button" data-tab="walkin">Walk-in <span class="n" id="tabWalkIn"></span></button>
           </div>
 
           <div class="list-tools">
@@ -634,9 +547,9 @@
       </div>
 
       <p class="footnote">
-        Numbers update automatically every 10 seconds. "Inside" means checked in and not yet checked
-        out. "Food not yet" counts only participants who have already checked in; people still
-        waiting are not included.
+        Numbers update automatically every 10 seconds. The total registered count includes walk-in
+        registrations. "Inside" means checked in and not yet checked out. Walk-in registrations are not
+        eligible for free food, so "Food not yet" counts only pre-registered participants who checked in.
       </p>
     </main>
   </div>
@@ -647,6 +560,10 @@
 
     const REFRESH_MS = 10000;
     const MAX_ROWS = 300;
+
+    const UPDATE_MESSAGE =
+      "The monitor needs the newest Code.gs. In Apps Script choose Deploy > Manage deployments > " +
+      "Edit (pencil) > Version: New version > Deploy.";
 
     let pin = "";            // set only after the lists are unlocked
     let timer = null;
@@ -684,8 +601,7 @@
       let text = message || "Unknown problem.";
 
       if (/unknown action/i.test(text)) {
-        text = "The scoreboard needs the newest Code.gs. In Apps Script choose " +
-          "Deploy > Manage deployments > Edit (pencil) > Version: New version > Deploy.";
+        text = UPDATE_MESSAGE;
       } else if (/failed to fetch|networkerror|load failed/i.test(text)) {
         text = "Cannot reach the Apps Script link. Check your internet connection, " +
           "that the deployment access is set to \"Anyone\", and that API_URL in this page is correct.";
@@ -823,52 +739,72 @@
     }
 
     function applyData(result) {
-      data = result;
       const c = result.counts;
 
+      // Older Code.gs versions do not send walk-in or section numbers.
+      if (!c || typeof c.walkIn !== "number" || !Array.isArray(result.sections)) {
+        showError(UPDATE_MESSAGE);
+        return;
+      }
+
+      data = result;
+
       $("nRegistered").textContent = c.registered;
+      $("hintRegistered").textContent =
+        c.preRegistered + " pre-registered + " + c.walkIn + " walk-in";
+      $("nWalkIn").textContent = c.walkIn;
       $("nCheckedIn").textContent = c.checkedIn;
+      $("hintCheckedIn").textContent =
+        c.checkedInPre + " pre-registered, " + c.checkedInWalkIn + " walk-in";
       $("nWaiting").textContent = c.waiting;
+
       $("nFoodGiven").textContent = c.foodGiven;
+      $("nFoodLimit").textContent = c.foodLimit;
+      $("nFoodRemaining").textContent = c.foodRemaining;
       $("nFoodNotYet").textContent = c.foodNotYet;
+
+      // Turn the food-stock card red when stock is almost gone (10% or less).
+      $("foodLeftCard").className =
+        "stat foodleft" + (c.foodLimit > 0 && c.foodRemaining <= c.foodLimit * 0.1 ? " low" : "");
 
       const checkinPct = pct(c.checkedIn, c.registered);
       $("pctCheckin").textContent = checkinPct + "%";
       $("barCheckin").style.width = checkinPct + "%";
       $("noteCheckin").textContent =
-        c.checkedIn + " of " + c.registered + " registered participants";
+        c.checkedIn + " of " + c.registered + " registered participants (pre-registered + walk-in)";
 
-      const foodPct = pct(c.foodGiven, c.checkedIn);
+      const foodPct = pct(c.foodGiven, c.foodLimit);
       $("pctFood").textContent = foodPct + "%";
-      $("barFood").style.width = foodPct + "%";
+      $("barFood").style.width = Math.min(foodPct, 100) + "%";
       $("noteFood").textContent =
-        c.foodGiven + " of " + c.checkedIn + " checked-in participants";
+        c.foodGiven + " given, " + c.foodRemaining + " left of " + c.foodLimit + " free food packs";
 
       $("tabWaiting").textContent = "(" + c.waiting + ")";
       $("tabCheckedIn").textContent = "(" + c.checkedIn + ")";
+      $("tabInside").textContent = "(" + c.inside + ")";
+      $("tabLeft").textContent = "(" + c.left + ")";
       $("tabFoodGiven").textContent = "(" + c.foodGiven + ")";
       $("tabFoodNotYet").textContent = "(" + c.foodNotYet + ")";
+      $("tabWalkIn").textContent = "(" + c.walkIn + ")";
 
       renderVenue(c);
+      renderSections();
 
       if (!paused) {
         setStatus("live", "Live - updated " + (result.generatedAt || "").slice(11));
       }
 
-      if (pin && result.waiting) {
+      if (pin && result.people) {
+        if (document.activeElement !== $("capacityInput")) {
+          $("capacityInput").value = c.capacity > 0 ? c.capacity : "";
+        }
+
         renderList();
       }
     }
 
     // Venue occupancy against capacity.
     function renderVenue(c) {
-      if (typeof c.inside !== "number") {
-        $("venueStatus").textContent = "Update needed";
-        $("noteVenue").textContent =
-          "Deploy the newest Code.gs (Deploy > Manage deployments > New version) to see who is inside.";
-        return;
-      }
-
       const capacity = c.capacity > 0 ? c.capacity : 0;
       let state = "none";
       let label = "No capacity limit set";
@@ -902,6 +838,7 @@
       $("nSpaces").textContent = spaces;
       $("venueStatus").textContent = label;
       $("barVenue").style.width = Math.min(percent, 100) + "%";
+
       let note = capacity > 0
         ? percent + "% of the venue capacity is in use"
         : "No limit is set. Unlock the lists below with the staff PIN to set the venue capacity.";
@@ -914,15 +851,282 @@
 
       $("noteVenue").textContent = note;
 
-      $("tabInside").textContent = "(" + c.inside + ")";
-      $("tabLeft").textContent = "(" + c.left + ")";
-
       document.title =
         (state === "full" || state === "over" ? "FULL - " : "") + "Event Live Monitor";
+    }
 
-      if (document.activeElement !== $("capacityInput")) {
-        $("capacityInput").value = capacity > 0 ? capacity : "";
+    // Per section table with search and totals.
+    function renderSections() {
+      const query = $("sectionSearch").value.trim().toLowerCase();
+      const body = $("sectionBody");
+      const foot = $("sectionFoot");
+
+      body.replaceChildren();
+      foot.replaceChildren();
+
+      const rows = (data.sections || []).filter(function (s) {
+        return !query || String(s.section).toLowerCase().indexOf(query) !== -1;
+      });
+
+      const fields = ["preRegistered", "walkIn", "total", "checkedIn", "inside", "left", "foodGiven", "foodNotYet"];
+      const totals = { section: query ? "Total (matching)" : "Total (all)" };
+
+      fields.forEach(function (f) { totals[f] = 0; });
+
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 9;
+        td.className = "empty";
+        td.textContent = query ? "No matching section." : "No registrations yet.";
+        tr.appendChild(td);
+        body.appendChild(tr);
+        $("sectionNote").textContent = "";
+        return;
       }
+
+      rows.forEach(function (s) {
+        const tr = document.createElement("tr");
+
+        const name = document.createElement("td");
+        name.className = "sec";
+        name.textContent = s.section;
+        tr.appendChild(name);
+
+        fields.forEach(function (f) {
+          const td = document.createElement("td");
+          td.textContent = s[f];
+          tr.appendChild(td);
+          totals[f] += Number(s[f]) || 0;
+        });
+
+        body.appendChild(tr);
+      });
+
+      const totalRow = document.createElement("tr");
+      const label = document.createElement("td");
+      label.textContent = totals.section;
+      totalRow.appendChild(label);
+
+      fields.forEach(function (f) {
+        const td = document.createElement("td");
+        td.textContent = totals[f];
+        totalRow.appendChild(td);
+      });
+
+      foot.appendChild(totalRow);
+
+      $("sectionNote").textContent =
+        "Food not yet counts only pre-registered participants who have checked in. " +
+        "Walk-in registrations are not eligible for free food.";
+    }
+
+    // ---------- Participant lists (from the PIN-protected data) ----------
+    function byTextDesc(field) {
+      return function (a, b) {
+        return String(b[field]).localeCompare(String(a[field]));
+      };
+    }
+
+    function currentRows() {
+      if (!data || !data.people) {
+        return [];
+      }
+
+      const people = data.people;
+      const arrived = people.filter(function (p) { return p.arr; });
+
+      if (activeTab === "waiting") {
+        return people.filter(function (p) { return !p.arr; })
+          .map(function (p) { return { p: p, when: "Not yet arrived" }; });
+      }
+
+      if (activeTab === "checkedin") {
+        return arrived.slice().sort(byTextDesc("arr"))
+          .map(function (p) { return { p: p, when: "Arrived " + p.arr }; });
+      }
+
+      if (activeTab === "inside") {
+        return arrived.filter(function (p) { return !p.out; }).sort(byTextDesc("arr"))
+          .map(function (p) { return { p: p, when: "Arrived " + p.arr }; });
+      }
+
+      if (activeTab === "left") {
+        return arrived.filter(function (p) { return p.out; }).sort(byTextDesc("outAt"))
+          .map(function (p) { return { p: p, when: "Left " + p.outAt }; });
+      }
+
+      if (activeTab === "foodgiven") {
+        return arrived.filter(function (p) { return p.food; }).sort(byTextDesc("foodAt"))
+          .map(function (p) { return { p: p, when: "Food " + p.foodAt }; });
+      }
+
+      if (activeTab === "foodnotyet") {
+        return arrived.filter(function (p) { return !p.food && p.type !== "Walk-in"; })
+          .sort(byTextDesc("arr"))
+          .map(function (p) { return { p: p, when: "Arrived " + p.arr }; });
+      }
+
+      // walk-in
+      return people.filter(function (p) { return p.type === "Walk-in"; })
+        .map(function (p) {
+          return { p: p, when: p.arr ? "Arrived " + p.arr : "Registered, not yet arrived" };
+        });
+    }
+
+    function renderList() {
+      const query = $("search").value.trim().toLowerCase();
+      const list = $("list");
+      list.replaceChildren();
+
+      let rows = currentRows();
+
+      if (query) {
+        rows = rows.filter(function (r) {
+          const p = r.p;
+          return [p.name, p.sid, p.sec, p.ref, p.type]
+            .join(" ").toLowerCase().indexOf(query) !== -1;
+        });
+      }
+
+      if (rows.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = query ? "No matching participants." : "Nobody in this list.";
+        list.appendChild(empty);
+        $("listNote").textContent = "";
+        return;
+      }
+
+      rows.slice(0, MAX_ROWS).forEach(function (r) {
+        const row = document.createElement("div");
+        row.className = "row";
+
+        const left = document.createElement("div");
+
+        const who = document.createElement("div");
+        who.className = "who";
+        who.textContent = r.p.name || "(no name)";
+
+        if (r.p.type === "Walk-in") {
+          const badge = document.createElement("span");
+          badge.className = "badge";
+          badge.textContent = "Walk-in";
+          who.appendChild(badge);
+        }
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = [r.p.sid, r.p.sec, r.p.ref]
+          .filter(Boolean).join("  |  ");
+
+        left.appendChild(who);
+        left.appendChild(meta);
+
+        const when = document.createElement("div");
+        when.className = "when";
+        when.textContent = r.when;
+
+        row.appendChild(left);
+        row.appendChild(when);
+        list.appendChild(row);
+      });
+
+      $("listNote").textContent = rows.length > MAX_ROWS
+        ? "Showing the first " + MAX_ROWS + " of " + rows.length + ". Use search to find others."
+        : rows.length + " participant" + (rows.length === 1 ? "" : "s") + " shown.";
+    }
+
+    // ---------- CSV downloads ----------
+    const CSV_COLUMNS = [
+      ["Reference Number", function (p) { return p.ref; }],
+      ["Registration Type", function (p) { return p.type; }],
+      ["Full Name", function (p) { return p.name; }],
+      ["Student ID", function (p) { return p.sid; }],
+      ["Year & Section", function (p) { return p.sec; }],
+      ["Checked In", function (p) { return p.arr ? "YES" : "NO"; }],
+      ["Check-in Time", function (p) { return p.arr; }],
+      ["Checked In By", function (p) { return p.arrBy; }],
+      ["Food Distributed", function (p) { return p.food ? "YES" : "NO"; }],
+      ["Food Time", function (p) { return p.foodAt; }],
+      ["Food Given By", function (p) { return p.foodBy; }],
+      ["Checked Out", function (p) { return p.out ? "YES" : "NO"; }],
+      ["Check-out Time", function (p) { return p.outAt; }],
+      ["Checked Out By", function (p) { return p.outBy; }]
+    ];
+
+    function csvCell(value) {
+      let text = String(value === null || value === undefined ? "" : value);
+
+      // Stop spreadsheet formulas in Excel / Google Sheets.
+      if (/^[=+\-@\t\r]/.test(text)) {
+        text = "'" + text;
+      }
+
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function buildCsv(people) {
+      const lines = [CSV_COLUMNS.map(function (c) { return csvCell(c[0]); }).join(",")];
+
+      people.forEach(function (p) {
+        lines.push(CSV_COLUMNS.map(function (c) { return csvCell(c[1](p)); }).join(","));
+      });
+
+      return lines.join("\r\n");
+    }
+
+    function fileStamp() {
+      const d = new Date();
+      const two = function (n) { return String(n).padStart(2, "0"); };
+
+      return d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate()) +
+        "_" + two(d.getHours()) + two(d.getMinutes());
+    }
+
+    function downloadFile(kind) {
+      if (!data || !data.people) {
+        $("downloadMessage").textContent = "Unlock the lists first.";
+        return;
+      }
+
+      const people = data.people;
+      let rows;
+      let name;
+
+      if (kind === "attendance") {
+        rows = people.filter(function (p) { return p.arr; }).sort(byTextDesc("arr")).reverse();
+        name = "attendance";
+      } else if (kind === "food") {
+        rows = people.filter(function (p) { return p.food; }).sort(byTextDesc("foodAt")).reverse();
+        name = "food-distributed";
+      } else if (kind === "left") {
+        rows = people.filter(function (p) { return p.out; }).sort(byTextDesc("outAt")).reverse();
+        name = "checkouts";
+      } else {
+        rows = people.slice();
+        name = "all-registrants";
+      }
+
+      if (rows.length === 0) {
+        $("downloadMessage").textContent = "Nothing to download yet for this file.";
+        return;
+      }
+
+      // The BOM makes Excel read names with accents correctly.
+      const blob = new Blob(["\uFEFF" + buildCsv(rows)], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "benta-" + name + "-" + fileStamp() + ".csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+
+      $("downloadMessage").textContent = "Downloaded " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ".";
     }
 
     // Staff saves the venue capacity (PIN required).
@@ -961,108 +1165,10 @@
         });
     }
 
-    function currentRows() {
-      if (!data || !data.waiting) {
-        return [];
-      }
-
-      if (activeTab === "waiting") {
-        return data.waiting.map(function (p) {
-          return { p: p, when: "Not yet arrived" };
-        });
-      }
-
-      if (activeTab === "checkedin") {
-        return data.foodNotYet.concat(data.foodGiven)
-          .sort(function (a, b) {
-            return String(b.arrival).localeCompare(String(a.arrival));
-          })
-          .map(function (p) {
-            return { p: p, when: "Arrived " + (p.arrival || "") };
-          });
-      }
-
-      if (activeTab === "inside") {
-        return (data.inside || []).map(function (p) {
-          return { p: p, when: "Arrived " + (p.arrival || "") };
-        });
-      }
-
-      if (activeTab === "left") {
-        return (data.left || []).map(function (p) {
-          return { p: p, when: "Left " + (p.outAt || "") };
-        });
-      }
-
-      if (activeTab === "foodgiven") {
-        return data.foodGiven.map(function (p) {
-          return { p: p, when: "Food " + (p.foodAt || "") };
-        });
-      }
-
-      return data.foodNotYet.map(function (p) {
-        return { p: p, when: "Arrived " + (p.arrival || "") };
-      });
-    }
-
-    function renderList() {
-      const query = $("search").value.trim().toLowerCase();
-      const list = $("list");
-      list.replaceChildren();
-
-      let rows = currentRows();
-
-      if (query) {
-        rows = rows.filter(function (r) {
-          const p = r.p;
-          return [p.name, p.studentId, p.section, p.ref]
-            .join(" ").toLowerCase().indexOf(query) !== -1;
-        });
-      }
-
-      if (rows.length === 0) {
-        const empty = document.createElement("div");
-        empty.className = "empty";
-        empty.textContent = query ? "No matching participants." : "Nobody in this list.";
-        list.appendChild(empty);
-        $("listNote").textContent = "";
-        return;
-      }
-
-      rows.slice(0, MAX_ROWS).forEach(function (r) {
-        const row = document.createElement("div");
-        row.className = "row";
-
-        const left = document.createElement("div");
-
-        const who = document.createElement("div");
-        who.className = "who";
-        who.textContent = r.p.name || "(no name)";
-
-        const meta = document.createElement("div");
-        meta.className = "meta";
-        meta.textContent = [r.p.studentId, r.p.section, r.p.ref]
-          .filter(Boolean).join("  |  ");
-
-        left.appendChild(who);
-        left.appendChild(meta);
-
-        const when = document.createElement("div");
-        when.className = "when";
-        when.textContent = r.when;
-
-        row.appendChild(left);
-        row.appendChild(when);
-        list.appendChild(row);
-      });
-
-      $("listNote").textContent = rows.length > MAX_ROWS
-        ? "Showing the first " + MAX_ROWS + " of " + rows.length + ". Use search to find others."
-        : rows.length + " participant" + (rows.length === 1 ? "" : "s") + " shown.";
-    }
-
+    // ---------- Events ----------
     $("tabs").addEventListener("click", function (event) {
       const button = event.target.closest(".tab");
+
       if (!button) {
         return;
       }
@@ -1077,6 +1183,11 @@
     });
 
     $("search").addEventListener("input", renderList);
+    $("sectionSearch").addEventListener("input", function () {
+      if (data) {
+        renderSections();
+      }
+    });
 
     $("pin").addEventListener("keydown", function (event) {
       if (event.key === "Enter") {
@@ -1093,6 +1204,7 @@
     (function restore() {
       try {
         const saved = sessionStorage.getItem("monitorPin");
+
         if (saved) {
           $("pin").value = saved;
           unlockLists();
