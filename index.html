@@ -252,6 +252,20 @@
       border-radius: 9px 0 0 9px;
     }
 
+    .reference-input .prefix-select {
+      width: auto;
+      min-height: 46px;
+      margin: 0;
+      padding: 0 8px;
+      background: #e7edf5;
+      border: 1px solid #cbd3df;
+      border-right: 0;
+      border-radius: 9px 0 0 9px;
+      font-weight: bold;
+      color: #17365f;
+      flex-shrink: 0;
+    }
+
     .reference-separator {
       border-left: 0;
       border-right: 0;
@@ -502,7 +516,10 @@
         <label>Registration Reference Number</label>
 
         <div class="reference-input">
-          <span class="prefix">PRE-</span>
+          <select id="referencePrefix" class="prefix-select" aria-label="Registration type">
+            <option value="PRE-">PRE-</option>
+            <option value="WLK-">WLK-</option>
+          </select>
 
           <input
             id="referenceDate"
@@ -528,8 +545,8 @@
         </div>
 
         <p class="small">
-          Enter the 8-digit date and the 4-digit registration number
-          separately. Example: date 20261010, number 0003.
+          Pick PRE- (pre-registered) or WLK- (walk-in), then enter the 8-digit date and
+          the 4-digit number separately. Example: PRE- 20261010 - 0003.
         </p>
 
         <button
@@ -741,6 +758,7 @@
         "Student ID: " + (p.studentId || "—"),
         "Year & Section: " + (p.yearSection || "—"),
         "Reference: " + (p.referenceNumber || "—"),
+        "Registration: " + (p.type || "—"),
         "Arrival: " + (data.arrivalTime || "—")
       ].concat(
         data.foodTime
@@ -1129,7 +1147,8 @@
         return;
       }
 
-      const reference = "PRE-" + datePart + "-" + numberPart;
+      const reference = document.getElementById("referencePrefix").value +
+        datePart + "-" + numberPart;
 
       beep("scan");
       submitCheckIn(reference);
@@ -1196,7 +1215,9 @@
             beep("error");
             showResult(
               "error",
-              data && data.status === "NOT_CHECKED_IN"
+              data && data.status === "NO_FOOD_WALKIN"
+                ? "WALK-IN — NO FREE FOOD"
+              : data && data.status === "NOT_CHECKED_IN"
                 ? (activeAction === "checkout"
                     ? "NEVER CHECKED IN"
                     : "NOT CHECKED IN YET")
