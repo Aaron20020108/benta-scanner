@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>BENTA Walk-in Registration</title>
+
+  <style>
+    :root {
+      --bg: #f7efef;
+      --card: #ffffff;
+      --text: #202124;
+      --muted: #5f6368;
+      --line: #dadce0;
+      --accent: #a85d5d;
+      --accent-dark: #8c4646;
+      --bar: #d9a8a8;
+      --error: #c5221f;
+      --warn-bg: #fff3cd;
+      --warn-text: #664d03;
+      --ok: #137333;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 12px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Georgia, "Times New Roman", serif;
+      line-height: 1.5;
+    }
+
+    .wrap {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px 22px;
+      margin-bottom: 12px;
+    }
+
+    /* ---- Banner ---- */
+    .banner {
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 0;
+    }
+
+    .banner img {
+      display: block;
+      width: 100%;
+      height: auto;
+    }
+
+    .banner-fallback {
+      padding: 22px 12px;
+      text-align: center;
+      color: #fff;
+      background: linear-gradient(120deg, #b45309, #b91c1c 40%, #7c2d12 70%, #c2410c);
+    }
+
+    .banner-fallback .big {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: clamp(40px, 12vw, 64px);
+      font-weight: 900;
+      letter-spacing: 0.06em;
+      line-height: 1;
+      color: #fbbf24;
+      text-shadow: 2px 2px 0 rgba(0, 0, 0, 0.35);
+    }
+
+    .banner-fallback .sub {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    /* ---- Title card ---- */
+    .title-card {
+      border-top: 10px solid var(--bar);
+      margin-top: -4px;
+    }
+
+    h1 {
+      font-size: clamp(24px, 6vw, 32px);
+      font-weight: normal;
+      margin: 0 0 12px;
+      line-height: 1.2;
+    }
+
+    .title-card p {
+      margin: 0 0 12px;
+      font-size: 14px;
+    }
+
+    .title-card p:last-child {
+      margin-bottom: 0;
+    }
+
+    .required-note {
+      color: var(--error);
+      font-size: 13px;
+    }
+
+    /* ---- Section heading bar ---- */
+    .section-bar {
+      background: var(--bar);
+      color: #202124;
+      font-weight: bold;
+      font-size: 14px;
+      letter-spacing: 0.03em;
+      padding: 12px 22px;
+      border-radius: 8px 8px 0 0;
+      margin-top: 18px;
+    }
+
+    .section-bar + .card {
+      border-top: 0;
+      border-radius: 0 0 8px 8px;
+    }
+
+    /* ---- Fields ---- */
+    .q-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin: 0 0 6px;
+    }
+
+    .q-title .star {
+      color: var(--error);
+    }
+
+    .q-help {
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0 0 12px;
+    }
+
+    input[type="text"],
+    input[type="email"] {
+      width: 100%;
+      font-family: inherit;
+      font-size: 16px;
+      padding: 10px 2px;
+      border: 0;
+      border-bottom: 1px solid var(--line);
+      border-radius: 0;
+      background: transparent;
+      color: var(--text);
+      outline: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="email"]:focus {
+      border-bottom: 2px solid var(--accent);
+      padding-bottom: 9px;
+    }
+
+    .field-error {
+      display: none;
+      color: var(--error);
+      font-size: 13px;
+      margin-top: 8px;
+    }
+
+    .has-error .field-error {
+      display: block;
+    }
+
+    .has-error {
+      border-color: var(--error);
+    }
+
+    /* ---- Radio and checkbox ---- */
+    .choice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+      font-size: 15px;
+      cursor: pointer;
+    }
+
+    .choice input {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .choice.top {
+      align-items: flex-start;
+    }
+
+    .other-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 9px 0;
+    }
+
+    .other-row input[type="radio"] {
+      width: 20px;
+      height: 20px;
+      margin: 0;
+      accent-color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .other-row label {
+      white-space: nowrap;
+      font-size: 15px;
+    }
+
+    .other-row input[type="text"] {
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ---- Privacy text ---- */
+    .privacy p {
+      font-size: 13.5px;
+      margin: 0 0 12px;
+    }
+
+    /* ---- Buttons ---- */
+    .actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    button {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 15px;
+      font-weight: bold;
+      border-radius: 6px;
+      padding: 11px 24px;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+      border: 0;
+    }
+
+    .btn-primary:hover {
+      background: var(--accent-dark);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: wait;
+    }
+
+    .btn-link {
+      background: transparent;
+      border: 0;
+      color: var(--accent);
+      font-weight: normal;
+      padding: 8px;
+    }
+
+    #formError {
+      display: none;
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 6px;
+      background: #fce8e6;
+      color: var(--error);
+      font-size: 14px;
+    }
+
+    /* ---- Disclaimer ---- */
+    .disclaimer {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: var(--warn-bg);
+      color: var(--warn-text);
+      border: 1px solid #ffe69c;
+      font-size: 14px;
+    }
+
+    .disclaimer strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .footer-note {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      margin: 18px 0 8px;
+    }
+
+    /* ---- Success screen ---- */
+    #success {
+      display: none;
+      text-align: center;
+    }
+
+    #success h2 {
+      margin: 0 0 6px;
+      font-weight: normal;
+      color: var(--ok);
+    }
+
+    .ref-label {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-top: 16px;
+    }
+
+    .ref-number {
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: clamp(22px, 7vw, 32px);
+      font-weight: bold;
+      color: var(--accent-dark);
+      margin: 4px 0 12px;
+      word-break: break-all;
+    }
+
+    #qrImage {
+      display: block;
+      margin: 0 auto 8px;
+      width: 240px;
+      height: 240px;
+      max-width: 100%;
+    }
+
+    .email-note {
+      font-size: 14px;
+      margin: 10px 0;
+    }
+
+    .email-note.bad {
+      color: var(--error);
+      font-weight: bold;
+    }
+
+    /* Honeypot: hidden from people, visible to bots */
+    .hp {
+      position: absolute;
+      left: -9999px;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+
+    <!-- Banner: shows banner.jpg if you add one to the repo, otherwise a built-in banner -->
+    <div class="banner">
+      <img id="bannerImg" src="banner.jpg" alt="BENTA banner" style="display:none"
+           onload="this.style.display='block';document.getElementById('bannerFallback').style.display='none';"
+           onerror="this.remove();">
+      <div id="bannerFallback" class="banner-fallback">
+        <div class="big">BENTA</div>
+        <div class="sub">Building Entrepreneurs, Nurturing Their Tactics, and Achieving Business Success</div>
+      </div>
+    </div>
+
+    <!-- FORM -->
+    <div id="formArea">
+      <div class="card title-card">
+        <h1>BENTA Walk-in Registration</h1>
+
+        <p><strong>BENTA:</strong> Building Entrepreneurs, Nurturing their Tactics, and Achieving Business Success</p>
+
+        <p>
+          A seminar-workshop designed to empower student entrepreneurs by combining practical
+          branding strategies with sound financial management. Through expert discussions,
+          interactive activities, and pitch sessions, the event aims to help participants build
+          sustainable ventures, improve decision-making, and gain confidence in managing their
+          own businesses.
+        </p>
+
+        <p>
+          Venue: Integrated Research and Training Center<br>
+          Event Organizer: Bachelor of Science in Entrepreneurship - Events Management
+        </p>
+
+        <p class="required-note">* Indicates required question</p>
+      </div>
+
+      <form id="walkinForm" novalidate autocomplete="on">
+
+        <!-- Honeypot (leave empty) -->
+        <div class="hp" aria-hidden="true">
+          <label for="website">Website</label>
+          <input id="website" name="website" type="text" tabindex="-1" autocomplete="off">
+        </div>
+
+        <!-- Email -->
+        <div class="card" id="box-email">
+          <p class="q-title">Email <span class="star">*</span></p>
+          <p class="q-help">Your reference number and QR code will be sent to this email.</p>
+          <input id="email" name="email" type="email" placeholder="Your email" autocomplete="email" maxlength="120">
+          <div class="field-error" id="err-email">Please enter a valid email address.</div>
+        </div>
+
+        <!-- Data privacy -->
+        <div class="card privacy" id="box-consent">
+          <p class="q-title">Data Privacy Notice <span class="star">*</span></p>
+
+          <p>
+            In compliance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>,
+            we would like to inform you that the information collected in this registration form will
+            be used solely for the purpose of registering you for and assessing and improving the
+            seminar-workshop <strong>BENTA: Building Entrepreneurs, Nurturing Their Tactics, and
+            Achieving Business Success</strong>.
+          </p>
+
+          <p>
+            All responses will be treated with the highest confidentiality. Your personal information
+            will not be disclosed, shared, or used for any other purpose beyond this registration and
+            evaluation. By proceeding, you acknowledge that you have read, understood, and agreed to
+            the terms of this Data Privacy Notice.
+          </p>
+
+          <label class="choice top">
+            <input id="consent" name="consent" type="checkbox">
+            <span>I have read and understood the Data Privacy Notice, and I agree to provide my information for the stated purpose.</span>
+          </label>
+
+          <div class="field-error" id="err-consent">Please read and agree to the Data Privacy Notice.</div>
+        </div>
+
+        <div class="section-bar">PERSONAL INFORMATION</div>
+
+        <!-- Full name -->
+        <div class="card" id="box-name">
+          <p class="q-title">FULL NAME <span class="star">*</span></p>
+          <p class="q-help">Format: First Name, Middle Initial, and Last Name ex.(Juan G. Dela Cruz, Jr.)</p>
+          <input id="fullName" name="fullName" type="text" placeholder="Your answer" autocomplete="name" maxlength="100">
+          <div class="field-error" id="err-name">Please enter your full name.</div>
+        </div>
+
+        <!-- Student ID -->
+        <div class="card" id="box-sid">
+          <p class="q-title">STUDENT ID <span class="star">*</span></p>
+          <p class="q-help">Format: TUPM-00-00000</p>
+          <input id="studentId" name="studentId" type="text" placeholder="Your answer" autocapitalize="characters" autocomplete="off" maxlength="30">
+          <div class="field-error" id="err-sid">Please enter your Student ID (example: TUPM-00-00000).</div>
+        </div>
+
+        <!-- Year & section -->
+        <div class="card" id="box-section">
+          <p class="q-title">YEAR &amp; SECTION <span class="star">*</span></p>
+          <p class="q-help">
+            Please select your current <strong>Year &amp; Section</strong> from the choices provided.<br><br>
+            If you are a professor, event organizer, or your year and section is not listed, please
+            select &ldquo;<strong>Other</strong>&rdquo; and indicate your appropriate designation or year and section.
+          </p>
+
+          <label class="choice"><input type="radio" name="section" value="BSEN 1A"> BSEN 1A</label>
+          <label class="choice"><input type="radio" name="section" value="BSEN 1B"> BSEN 1B</label>
+          <label class="choice"><input type="radio" name="section" value="BSEN 2A"> BSEN 2A</label>
+          <label class="choice"><input type="radio" name="section" value="BSEN 2B"> BSEN 2B</label>
+          <label class="choice"><input type="radio" name="section" value="BSEN 3A"> BSEN 3A</label>
+          <label class="choice"><input type="radio" name="section" value="BSEN 4A/Organizer"> BSEN 4A/Organizer</label>
+
+          <div class="other-row">
+            <input id="sectionOtherRadio" type="radio" name="section" value="__other__">
+            <label for="sectionOtherRadio">Other:</label>
+            <input id="sectionOther" type="text" aria-label="Other year and section" maxlength="60">
+          </div>
+
+          <div class="field-error" id="err-section">Please choose your Year &amp; Section, or type it under Other.</div>
+        </div>
+
+        <div id="formError" role="alert"></div>
+
+        <div class="actions">
+          <button id="submitButton" class="btn-primary" type="submit">Submit</button>
+          <button id="clearButton" class="btn-link" type="button">Clear form</button>
+        </div>
+      </form>
+
+      <!-- DISCLAIMER (below the form) -->
+      <div class="disclaimer" role="note">
+        <strong>Important notice</strong>
+        Walk-in registrations cannot receive snacks or free food because of limited stocks.
+      </div>
+
+      <p class="footer-note">Never submit passwords through this form.</p>
+    </div>
+
+    <!-- SUCCESS SCREEN -->
+    <div id="success" class="card">
+      <h2>Registration complete!</h2>
+      <p id="successMessage" class="email-note"></p>
+
+      <div class="ref-label">YOUR REFERENCE NUMBER</div>
+      <div class="ref-number" id="refNumber"></div>
+
+      <img id="qrImage" alt="Your registration QR code" width="240" height="240">
+      <p class="email-note" id="qrFallback" style="display:none;">
+        The QR code image could not load. Please show your reference number at the entrance.
+      </p>
+
+      <p class="email-note">
+        Please keep this screen or your email. Show your QR code at the entrance for check-in.
+      </p>
+
+      <div class="disclaimer" role="note" style="text-align:left;">
+        <strong>Important notice</strong>
+        Walk-in registrations cannot receive snacks or free food because of limited stocks.
+      </div>
+
+      <div class="actions" style="justify-content:center;">
+        <button id="againButton" class="btn-primary" type="button">Register another person</button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Your Apps Script web app link (same one the scanner uses).
+    const API_URL = "https://script.google.com/macros/s/AKfycbzJeJ9dP4JvQdXXrDoi_4L2AImgt6gh1_LF0gd5ao7ne3O2OuQjflHzVYvbsyiwle2fug/exec";
+
+    let submitting = false;
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function callApi(action, args) {
+      return fetch(API_URL, {
+        method: "POST",
+        // text/plain avoids a CORS preflight, which Apps Script cannot answer
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: action, args: args })
+      })
+      .then(function (response) { return response.json(); })
+      .then(function (json) {
+        if (!json.ok) {
+          throw new Error(json.error || "Request failed.");
+        }
+        return json.data;
+      });
+    }
+
+    function setError(boxId, errId, message) {
+      const box = $(boxId);
+      const err = $(errId);
+
+      if (message) {
+        err.textContent = message;
+        box.classList.add("has-error");
+      } else {
+        box.classList.remove("has-error");
+      }
+    }
+
+    function selectedSection() {
+      const chosen = document.querySelector('input[name="section"]:checked');
+
+      if (!chosen) {
+        return "";
+      }
+
+      if (chosen.value === "__other__") {
+        return $("sectionOther").value.replace(/\s+/g, " ").trim();
+      }
+
+      return chosen.value;
+    }
+
+    // Reads the form and shows an error under every field that needs fixing.
+    function validate() {
+      const email = $("email").value.trim();
+      const name = $("fullName").value.replace(/\s+/g, " ").trim();
+      const sid = $("studentId").value.replace(/\s+/g, "").toUpperCase();
+      const section = selectedSection();
+      const consent = $("consent").checked;
+
+      let ok = true;
+
+      const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      setError("box-email", "err-email", emailOk ? "" : "Please enter a valid email address.");
+      ok = ok && emailOk;
+
+      setError("box-consent", "err-consent", consent ? "" : "Please read and agree to the Data Privacy Notice.");
+      ok = ok && consent;
+
+      const nameOk = name.length >= 3 && name.length <= 100;
+      setError("box-name", "err-name", nameOk ? "" : "Please enter your full name (First Name, Middle Initial, Last Name).");
+      ok = ok && nameOk;
+
+      const sidOk = /^[A-Z0-9][A-Z0-9-]{2,29}$/.test(sid);
+      setError("box-sid", "err-sid", sidOk ? "" : "Please enter your Student ID (example: TUPM-00-00000).");
+      ok = ok && sidOk;
+
+      const sectionOk = section.length > 0 && section.length <= 60;
+      setError("box-section", "err-section", sectionOk ? "" : "Please choose your Year & Section, or type it under Other.");
+      ok = ok && sectionOk;
+
+      return {
+        ok: ok,
+        data: {
+          email: email,
+          fullName: name,
+          studentId: sid,
+          section: section,
+          consent: consent,
+          website: $("website").value
+        }
+      };
+    }
+
+    function showFormError(message) {
+      const box = $("formError");
+      box.textContent = message;
+      box.style.display = message ? "block" : "none";
+    }
+
+    function showSuccess(result) {
+      $("formArea").style.display = "none";
+      $("success").style.display = "block";
+
+      $("refNumber").textContent = result.referenceNumber;
+
+      const note = $("successMessage");
+      note.textContent = result.message || "";
+      note.className = "email-note" + (result.emailSent ? "" : " bad");
+
+      const qr = $("qrImage");
+      $("qrFallback").style.display = "none";
+      qr.style.display = "block";
+      qr.onerror = function () {
+        qr.style.display = "none";
+        $("qrFallback").style.display = "block";
+      };
+      qr.src = "https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=" +
+        encodeURIComponent(result.referenceNumber);
+
+      window.scrollTo(0, 0);
+    }
+
+    function submitForm(event) {
+      if (event) {
+        event.preventDefault();
+      }
+
+      if (submitting) {
+        return;
+      }
+
+      showFormError("");
+
+      const checked = validate();
+
+      if (!checked.ok) {
+        showFormError("Please fix the highlighted questions and try again.");
+        return;
+      }
+
+      submitting = true;
+      $("submitButton").disabled = true;
+      $("submitButton").textContent = "Registering...";
+
+      callApi("registerWalkIn", [checked.data])
+        .then(function (result) {
+          submitting = false;
+          $("submitButton").disabled = false;
+          $("submitButton").textContent = "Submit";
+
+          if (!result || !result.success) {
+            showFormError((result && result.message) || "Registration could not be completed.");
+            return;
+          }
+
+          showSuccess(result);
+        })
+        .catch(function (error) {
+          submitting = false;
+          $("submitButton").disabled = false;
+          $("submitButton").textContent = "Submit";
+
+          let message = (error && error.message) || "Connection problem.";
+
+          if (/failed to fetch|networkerror|load failed/i.test(message)) {
+            message = "Cannot reach the registration system. Please check your internet connection and try again.";
+          } else if (/unknown action/i.test(message)) {
+            message = "The registration system is not ready yet. Please ask the registration desk.";
+          }
+
+          showFormError(message);
+        });
+    }
+
+    function clearForm() {
+      $("walkinForm").reset();
+
+      ["box-email", "box-consent", "box-name", "box-sid", "box-section"].forEach(function (id) {
+        $(id).classList.remove("has-error");
+      });
+
+      showFormError("");
+    }
+
+    function registerAnother() {
+      clearForm();
+      $("success").style.display = "none";
+      $("formArea").style.display = "block";
+      window.scrollTo(0, 0);
+    }
+
+    // Typing in the Other box selects the Other option.
+    $("sectionOther").addEventListener("input", function () {
+      if ($("sectionOther").value.trim() !== "") {
+        $("sectionOtherRadio").checked = true;
+      }
+    });
+
+    // Student ID is always shown in capitals.
+    $("studentId").addEventListener("input", function () {
+      const el = $("studentId");
+      const upper = el.value.toUpperCase();
+
+      if (el.value !== upper) {
+        el.value = upper;
+      }
+    });
+
+    $("walkinForm").addEventListener("submit", submitForm);
+    $("clearButton").addEventListener("click", clearForm);
+    $("againButton").addEventListener("click", registerAnother);
+  </script>
+</body>
+</html>
