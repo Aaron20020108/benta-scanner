@@ -172,6 +172,16 @@
       color: #fff;
     }
 
+    .action-buttons .selected-toilet {
+      background: #0e7490;
+      color: #fff;
+    }
+
+    .action-buttons .selected-lunch {
+      background: #a16207;
+      color: #fff;
+    }
+
     .action-buttons .selected-checkin {
       background: #194579;
       color: #fff;
@@ -208,6 +218,16 @@
     .action-banner.checkout {
       background: #ede9fe;
       color: #5b21b6;
+    }
+
+    .action-banner.toilet {
+      background: #cffafe;
+      color: #155e75;
+    }
+
+    .action-banner.lunch {
+      background: #fef3c7;
+      color: #854d0e;
     }
 
     .section {
@@ -421,6 +441,24 @@
         >
           Check-Out<br>(Leaving)
         </button>
+
+        <button
+          id="actionToilet"
+          class="unselected"
+          type="button"
+          onclick="setAction('toilet')"
+        >
+          Toilet Break<br>(Out / In)
+        </button>
+
+        <button
+          id="actionLunch"
+          class="unselected"
+          type="button"
+          onclick="setAction('lunch')"
+        >
+          Lunch Break<br>(Out / In)
+        </button>
       </div>
 
       <div id="actionBanner" class="action-banner checkin">
@@ -556,6 +594,27 @@
         >
           Check In Participant
         </button>
+
+        <!-- Shown only for Toilet / Lunch break: type the TUP ID student number -->
+        <div id="breakManual" class="hidden">
+          <label for="studentIdEntry">Or type the Student ID (TUP ID)</label>
+
+          <input
+            id="studentIdEntry"
+            type="text"
+            placeholder="TUPM-00-00000"
+            autocapitalize="characters"
+            autocomplete="off"
+          >
+
+          <button
+            id="studentIdButton"
+            type="button"
+            onclick="studentIdCheckIn()"
+          >
+            Tag break by Student ID
+          </button>
+        </div>
       </section>
 
       <button
@@ -593,9 +652,9 @@
     let requestPending = false;
     let staffPinValidated = false;
     let activeMode = "camera";
-    let activeAction = "checkin";   // "checkin", "food" or "checkout"
+    let activeAction = "checkin";   // "checkin", "food", "checkout", "toilet" or "lunch"
 
-    // The three tasks the scanner can do.
+    // The tasks the scanner can do.
     const ACTIONS = {
       checkin: {
         button: "actionCheckin",
@@ -620,10 +679,28 @@
         title: "Check-out mode",
         text: "Scan the QR code of a participant who is leaving the venue.",
         fn: "checkOutParticipant"
+      },
+      toilet: {
+        button: "actionToilet",
+        selected: "selected-toilet",
+        banner: "Current task: TOILET BREAK (OUT / IN)",
+        title: "Toilet break mode",
+        text: "Scan the TUP ID QR code of a checked-in participant. First scan = OUT, scan again when they return = IN.",
+        fn: "tagBreak",
+        breakType: "TOILET"
+      },
+      lunch: {
+        button: "actionLunch",
+        selected: "selected-lunch",
+        banner: "Current task: LUNCH BREAK (OUT / IN)",
+        title: "Lunch break mode",
+        text: "Scan the TUP ID QR code of a checked-in participant. First scan = OUT, scan again when they return = IN.",
+        fn: "tagBreak",
+        breakType: "LUNCH"
       }
     };
 
-    // Switch between check-in, food distribution and check-out.
+    // Switch between check-in, food, check-out and the two break tasks.
     function setAction(action) {
       if (requestPending) {
         return;
@@ -639,6 +716,10 @@
       const banner = document.getElementById("actionBanner");
       banner.className = "action-banner " + activeAction;
       banner.textContent = ACTIONS[activeAction].banner;
+
+      // Student ID typing box is only for the break tasks.
+      document.getElementById("breakManual")
+        .classList.toggle("hidden", !ACTIONS[activeAction].breakType);
 
       document.getElementById("nextButton").classList.add("hidden");
 
@@ -768,6 +849,16 @@
         data.checkoutTime
           ? ["Checked out: " + data.checkoutTime]
           : [],
+        data.breakType
+          ? ["Break: " + (data.breakType === "TOILET" ? "Toilet" : "Lunch") +
+             (data.breakSince ? " since " + String(data.breakSince).slice(11) : "")]
+          : [],
+        typeof data.minutesAway === "number"
+          ? ["Time away: " + data.minutesAway + " min"]
+          : [],
+        data.breaksTaken
+          ? ["Breaks taken today: " + data.breaksTaken]
+          : [],
         typeof data.inside === "number"
           ? [insideLine(data)]
           : []
@@ -788,7 +879,89 @@
         return "CHECKED OUT — Thank you!";
       }
 
+      if (data.status === "BREAK_OUT") {
+        return (data.breakType === "TOILET" ? "TOILET" : "LUNCH") + " BREAK — OUT";
+      }
+
+      if (data.status === "BREAK_IN") {
+        return "BACK FROM " + (data.breakType === "TOILET" ? "TOILET" : "LUNCH") + " BREAK — IN";
+      }
+
       return "PRESENT — Check-in successful!";
+    }
+
+    // Yellow results (already done / try again).
+    function isDuplicateStatus(status) {
+      return status === "DUPLICATE" ||
+             status === "FOOD_ALREADY" ||
+             status === "CHECKOUT_ALREADY" ||
+             status === "TOO_SOON" ||
+             status === "ON_OTHER_BREAK";
+    }
+
+    function duplicateTitle(data) {
+      if (data.status === "FOOD_ALREADY") {
+        return "FOOD ALREADY CLAIMED — do not give again";
+      }
+
+      if (data.status === "CHECKOUT_ALREADY") {
+        return "ALREADY CHECKED OUT";
+      }
+
+      if (data.status === "TOO_SOON") {
+        return "JUST SCANNED — wait a few seconds";
+      }
+
+      if (data.status === "ON_OTHER_BREAK") {
+        return "ON ANOTHER BREAK — return them first";
+      }
+
+      return "ALREADY CHECKED IN";
+    }
+
+    // Red results.
+    function errorTitle(data) {
+      const status = data && data.status;
+
+      if (status === "NO_FOOD_WALKIN") {
+        return "WALK-IN — NO FREE FOOD";
+      }
+
+      if (status === "NOT_CHECKED_IN") {
+        if (activeAction === "checkout") {
+          return "NEVER CHECKED IN";
+        }
+
+        return ACTIONS[activeAction].breakType
+          ? "NOT CHECKED IN — no break allowed"
+          : "NOT CHECKED IN YET";
+      }
+
+      if (status === "ON_BREAK") {
+        return "ON A BREAK — scan them back IN first";
+      }
+
+      if (status === "ALREADY_LEFT") {
+        return "ALREADY LEFT THE EVENT";
+      }
+
+      if (status === "INVALID_CODE") {
+        return "UNRECOGNIZED CODE";
+      }
+
+      if (activeAction === "food") {
+        return "Food distribution unsuccessful";
+      }
+
+      if (activeAction === "checkout") {
+        return "Check-out unsuccessful";
+      }
+
+      if (ACTIONS[activeAction].breakType) {
+        return "Break scan unsuccessful";
+      }
+
+      return "Check-in unsuccessful";
     }
 
     // Validate staff PIN with the server before unlocking attendance.
@@ -1154,6 +1327,27 @@
       submitCheckIn(reference);
     }
 
+    // Break tasks: type the Student ID printed on the TUP ID.
+    function studentIdCheckIn() {
+      initAudio();
+
+      const value = document.getElementById("studentIdEntry").value
+        .replace(/\s+/g, "").toUpperCase();
+
+      if (!staffPinValidated || requestPending) {
+        return;
+      }
+
+      if (!value) {
+        showResult("error", "Student ID required", "Type the Student ID, for example TUPM-00-00000.");
+        return;
+      }
+
+      beep("scan");
+      submitCheckIn(value);
+      document.getElementById("studentIdEntry").value = "";
+    }
+
     function submitCheckIn(reference) {
       if (!staffPinValidated || requestPending) {
         return;
@@ -1179,7 +1373,7 @@
         "Please wait."
       );
 
-      google.script.run
+      const runner = google.script.run
         .withSuccessHandler(function(data) {
           requestPending = false;
 
@@ -1188,7 +1382,7 @@
 
           if (data && data.success) {
             showResult(
-              "present",
+              data.status === "BREAK_OUT" ? "duplicate" : "present",
               successTitle(data),
               participantDetails(data)
             );
@@ -1196,36 +1390,21 @@
             document.getElementById("referenceDate").value = "";
             document.getElementById("referenceNumber").value = "";
 
-          } else if (data &&
-                     (data.status === "DUPLICATE" ||
-                      data.status === "FOOD_ALREADY" ||
-                      data.status === "CHECKOUT_ALREADY")) {
+          } else if (data && isDuplicateStatus(data.status)) {
             beep("duplicate");
             showResult(
               "duplicate",
-              data.status === "FOOD_ALREADY"
-                ? "FOOD ALREADY CLAIMED — do not give again"
-                : (data.status === "CHECKOUT_ALREADY"
-                    ? "ALREADY CHECKED OUT"
-                    : "ALREADY CHECKED IN"),
-              participantDetails(data)
+              duplicateTitle(data),
+              (data.status === "TOO_SOON" || data.status === "ON_OTHER_BREAK"
+                ? data.message + "\n"
+                : "") + participantDetails(data)
             );
 
           } else {
             beep("error");
             showResult(
               "error",
-              data && data.status === "NO_FOOD_WALKIN"
-                ? "WALK-IN — NO FREE FOOD"
-              : data && data.status === "NOT_CHECKED_IN"
-                ? (activeAction === "checkout"
-                    ? "NEVER CHECKED IN"
-                    : "NOT CHECKED IN YET")
-                : (activeAction === "food"
-                    ? "Food distribution unsuccessful"
-                    : (activeAction === "checkout"
-                        ? "Check-out unsuccessful"
-                        : "Check-in unsuccessful")),
+              errorTitle(data),
               (data && data.message
                 ? data.message
                 : "Please try again.") +
@@ -1255,10 +1434,15 @@
 
           document.getElementById("nextButton")
             .classList.remove("hidden");
-        })
-        [ACTIONS[activeAction].fn](
-          reference, getPin(), getStaffName()
-        );
+        });
+
+      const callArgs = [reference, getPin(), getStaffName()];
+
+      if (ACTIONS[activeAction].breakType) {
+        callArgs.push(ACTIONS[activeAction].breakType);
+      }
+
+      runner[ACTIONS[activeAction].fn].apply(runner, callArgs);
     }
 
     async function scanNext() {
