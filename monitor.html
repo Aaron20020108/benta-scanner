@@ -19,6 +19,7 @@
       --teal: #0f766e;
       --red: #b91c1c;
       --purple: #6d28d9;
+      --cyan: #0e7490;
       --track: #e4e8ef;
       --shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
     }
@@ -37,6 +38,7 @@
         --teal: #2dd4bf;
         --red: #f87171;
         --purple: #a78bfa;
+        --cyan: #22d3ee;
         --track: #2a374d;
         --shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
       }
@@ -243,6 +245,14 @@
     .stat.foodleft.low .value { color: var(--red); }
     .stat.nofood { border-top-color: var(--red); }
     .stat.nofood .value { color: var(--red); }
+    .stat.toilet { border-top-color: var(--cyan); }
+    .stat.toilet .value { color: var(--cyan); }
+    .stat.lunch { border-top-color: var(--amber); }
+    .stat.lunch .value { color: var(--amber); }
+    .stat.inroom { border-top-color: var(--green); }
+    .stat.inroom .value { color: var(--green); }
+    .stat.trips { border-top-color: var(--muted); }
+    .section-title { margin: 6px 0 10px; font-size: 18px; }
 
     .progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
     .progress-grid .card { margin-bottom: 0; }
@@ -395,6 +405,40 @@
         <div class="progress-note" id="noteVenue">Waiting for data...</div>
       </div>
 
+      <!-- TOILET AND LUNCH BREAKS -->
+      <h2 class="section-title">Toilet &amp; lunch breaks</h2>
+      <div class="stats">
+        <div class="stat toilet">
+          <div class="label">On toilet break</div>
+          <div class="value" id="nOnToilet">&ndash;</div>
+          <div class="hint">Out of the room right now</div>
+        </div>
+
+        <div class="stat lunch">
+          <div class="label">On lunch break</div>
+          <div class="value" id="nOnLunch">&ndash;</div>
+          <div class="hint">Out of the room right now</div>
+        </div>
+
+        <div class="stat inroom">
+          <div class="label">In the room now</div>
+          <div class="value" id="nInRoom">&ndash;</div>
+          <div class="hint" id="hintInRoom">Inside minus those on a break</div>
+        </div>
+
+        <div class="stat trips">
+          <div class="label">Toilet trips today</div>
+          <div class="value" id="nToiletTotal">&ndash;</div>
+          <div class="hint">All toilet breaks taken</div>
+        </div>
+
+        <div class="stat trips">
+          <div class="label">Lunch breaks today</div>
+          <div class="value" id="nLunchTotal">&ndash;</div>
+          <div class="hint">All lunch breaks taken</div>
+        </div>
+      </div>
+
       <!-- OVERALL COUNTS (pre-registered + walk-in) -->
       <div class="stats">
         <div class="stat registered">
@@ -522,6 +566,7 @@
             <button type="button" onclick="downloadFile('attendance')">Attendance (who entered)</button>
             <button type="button" onclick="downloadFile('food')">Food distributed</button>
             <button type="button" onclick="downloadFile('left')">Check-outs</button>
+            <button type="button" onclick="downloadBreakLog()">Break log (every scan)</button>
             <button type="button" class="secondary" onclick="downloadFile('all')">All registrants</button>
             <span id="downloadMessage"></span>
           </div>
@@ -534,6 +579,8 @@
             <button class="tab" type="button" data-tab="foodgiven">Food provided <span class="n" id="tabFoodGiven"></span></button>
             <button class="tab" type="button" data-tab="foodnotyet">Food not yet <span class="n" id="tabFoodNotYet"></span></button>
             <button class="tab" type="button" data-tab="walkin">Walk-in <span class="n" id="tabWalkIn"></span></button>
+            <button class="tab" type="button" data-tab="ontoilet">On toilet break <span class="n" id="tabOnToilet"></span></button>
+            <button class="tab" type="button" data-tab="onlunch">On lunch break <span class="n" id="tabOnLunch"></span></button>
           </div>
 
           <div class="list-tools">
@@ -550,6 +597,8 @@
         Numbers update automatically every 10 seconds. The total registered count includes walk-in
         registrations. "Inside" means checked in and not yet checked out. Walk-in registrations are not
         eligible for free food, so "Food not yet" counts only pre-registered participants who checked in.
+        People on a toilet or lunch break still count as inside the venue for the capacity total;
+        "In the room now" shows who is physically present.
       </p>
     </main>
   </div>
@@ -742,7 +791,7 @@
       const c = result.counts;
 
       // Older Code.gs versions do not send walk-in or section numbers.
-      if (!c || typeof c.walkIn !== "number" || !Array.isArray(result.sections)) {
+      if (!c || typeof c.walkIn !== "number" || typeof c.onBreak !== "number" || !Array.isArray(result.sections)) {
         showError(UPDATE_MESSAGE);
         return;
       }
@@ -762,6 +811,13 @@
       $("nFoodLimit").textContent = c.foodLimit;
       $("nFoodRemaining").textContent = c.foodRemaining;
       $("nFoodNotYet").textContent = c.foodNotYet;
+
+      $("nOnToilet").textContent = c.onToilet;
+      $("nOnLunch").textContent = c.onLunch;
+      $("nInRoom").textContent = c.inRoom;
+      $("hintInRoom").textContent = c.inside + " inside - " + c.onBreak + " on a break";
+      $("nToiletTotal").textContent = c.toiletBreaks;
+      $("nLunchTotal").textContent = c.lunchBreaks;
 
       // Turn the food-stock card red when stock is almost gone (10% or less).
       $("foodLeftCard").className =
@@ -786,6 +842,8 @@
       $("tabFoodGiven").textContent = "(" + c.foodGiven + ")";
       $("tabFoodNotYet").textContent = "(" + c.foodNotYet + ")";
       $("tabWalkIn").textContent = "(" + c.walkIn + ")";
+      $("tabOnToilet").textContent = "(" + c.onToilet + ")";
+      $("tabOnLunch").textContent = "(" + c.onLunch + ")";
 
       renderVenue(c);
       renderSections();
@@ -840,7 +898,8 @@
       $("barVenue").style.width = Math.min(percent, 100) + "%";
 
       let note = capacity > 0
-        ? percent + "% of the venue capacity is in use"
+        ? percent + "% of the venue capacity is in use" +
+          (c.onBreak > 0 ? " (" + c.onBreak + " of them are out on a break)" : "")
         : "No limit is set. Unlock the lists below with the staff PIN to set the venue capacity.";
 
       // Registration is not limited, so registrations can exceed the venue.
@@ -967,6 +1026,22 @@
           .map(function (p) { return { p: p, when: "Arrived " + p.arr }; });
       }
 
+      if (activeTab === "ontoilet" || activeTab === "onlunch") {
+        const kind = activeTab === "ontoilet" ? "TOILET" : "LUNCH";
+
+        // Longest time away first.
+        return arrived.filter(function (p) { return p.brk === kind && !p.out; })
+          .sort(function (a, b) { return (b.brkMins || 0) - (a.brkMins || 0); })
+          .map(function (p) {
+            const m = /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2})/.exec(String(p.brkSince));
+            return {
+              p: p,
+              when: "Out since " + (m ? m[1] : p.brkSince) +
+                (typeof p.brkMins === "number" ? " (" + p.brkMins + " min)" : "")
+            };
+          });
+      }
+
       // walk-in
       return people.filter(function (p) { return p.type === "Walk-in"; })
         .map(function (p) {
@@ -1052,7 +1127,10 @@
       ["Food Given By", function (p) { return p.foodBy; }],
       ["Checked Out", function (p) { return p.out ? "YES" : "NO"; }],
       ["Check-out Time", function (p) { return p.outAt; }],
-      ["Checked Out By", function (p) { return p.outBy; }]
+      ["Checked Out By", function (p) { return p.outBy; }],
+      ["Toilet Breaks", function (p) { return p.tb; }],
+      ["Lunch Breaks", function (p) { return p.lb; }],
+      ["On Break Now", function (p) { return p.brk || "NO"; }]
     ];
 
     function csvCell(value) {
@@ -1113,8 +1191,12 @@
         return;
       }
 
+      saveCsv(name, buildCsv(rows), rows.length);
+    }
+
+    function saveCsv(name, csvText, count) {
       // The BOM makes Excel read names with accents correctly.
-      const blob = new Blob(["\uFEFF" + buildCsv(rows)], { type: "text/csv;charset=utf-8;" });
+      const blob = new Blob(["\uFEFF" + csvText], { type: "text/csv;charset=utf-8;" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
 
@@ -1126,7 +1208,43 @@
 
       setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
 
-      $("downloadMessage").textContent = "Downloaded " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ".";
+      $("downloadMessage").textContent =
+        "Downloaded " + count + " row" + (count === 1 ? "" : "s") + ".";
+    }
+
+    // Every toilet / lunch scan saved in the Break Log sheet.
+    function downloadBreakLog() {
+      if (!pin) {
+        $("downloadMessage").textContent = "Unlock the lists first.";
+        return;
+      }
+
+      $("downloadMessage").textContent = "Loading the break log...";
+
+      callApi("getBreakLog", [pin])
+        .then(function (result) {
+          if (!result || !result.success) {
+            $("downloadMessage").textContent =
+              (result && result.message) || "Could not load the break log.";
+            return;
+          }
+
+          if (!result.rows.length) {
+            $("downloadMessage").textContent = "No breaks have been logged yet.";
+            return;
+          }
+
+          const lines = [result.header.map(function (h) { return csvCell(h); }).join(",")]
+            .concat(result.rows.map(function (r) {
+              return r.map(function (c) { return csvCell(c); }).join(",");
+            }));
+
+          saveCsv("break-log", lines.join("\r\n"), result.rows.length);
+        })
+        .catch(function (error) {
+          $("downloadMessage").textContent =
+            (error && error.message) || "Connection problem.";
+        });
     }
 
     // Staff saves the venue capacity (PIN required).
