@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Student Event Status Tracker</title>
+
+  <!-- Pinned QR scanner library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.8/html5-qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #f2f5f9;
+      --card: #ffffff;
+      --text: #172033;
+      --muted: #596579;
+      --line: #e4e8ef;
+      --primary: #194579;
+      --present: #15803d;
+      --half: #b45309;
+      --absent: #b91c1c;
+      --incomplete: #1d4ed8;
+      --present-bg: #dcfce7;
+      --half-bg: #fef3c7;
+      --absent-bg: #fee2e2;
+      --incomplete-bg: #dbeafe;
+      --shadow: 0 4px 18px rgba(0, 0, 0, 0.08);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1623;
+        --card: #182235;
+        --text: #e8edf5;
+        --muted: #9aa7bd;
+        --line: #2a374d;
+        --primary: #5b9bd8;
+        --present: #4ade80;
+        --half: #fbbf24;
+        --absent: #f87171;
+        --incomplete: #93c5fd;
+        --present-bg: rgba(74, 222, 128, 0.15);
+        --half-bg: rgba(251, 191, 36, 0.15);
+        --absent-bg: rgba(248, 113, 113, 0.18);
+        --incomplete-bg: rgba(147, 197, 253, 0.15);
+        --shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+    }
+
+    .wrap { max-width: 960px; margin: 0 auto; }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    h1 { margin: 0; font-size: clamp(22px, 4vw, 30px); }
+    h2 { margin: 0 0 8px; font-size: 18px; }
+
+    .card {
+      background: var(--card);
+      border-radius: 16px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      margin-bottom: 14px;
+    }
+
+    input, select, button { font-size: 16px; border-radius: 9px; padding: 12px; min-height: 46px; }
+
+    input, select {
+      width: 100%;
+      border: 1px solid var(--line);
+      background: var(--card);
+      color: var(--text);
+    }
+
+    button {
+      border: 0;
+      background: var(--primary);
+      color: #fff;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+      font-weight: normal;
+    }
+
+    button:disabled { opacity: 0.6; cursor: wait; }
+    label { display: block; font-weight: bold; margin: 12px 0 6px; }
+    .hidden { display: none !important; }
+    .muted { color: var(--muted); }
+    .small { font-size: 13px; }
+
+    #login { max-width: 420px; margin: 30px auto; }
+    #loginMessage { margin-top: 12px; color: var(--absent); min-height: 20px; font-size: 14px; }
+
+    /* ---- Main tabs ---- */
+    .main-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .main-tabs button { background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow); }
+    .main-tabs button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+    /* ---- Scanner ---- */
+    #reader { width: 100%; margin-top: 10px; }
+    #reader video { border-radius: 10px; }
+    .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .manual-row { display: flex; gap: 10px; }
+    .manual-row button { white-space: nowrap; }
+
+    .message {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      line-height: 1.5;
+      white-space: pre-line;
+      overflow-wrap: anywhere;
+    }
+
+    .message.error { background: var(--absent-bg); color: var(--absent); }
+    .message.info { background: var(--incomplete-bg); color: var(--incomplete); }
+    .message.ok { background: var(--present-bg); color: var(--present); }
+
+    /* ---- Status badge ---- */
+    .badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-weight: bold;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .badge.PRESENT { background: var(--present-bg); color: var(--present); }
+    .badge.HALF_DAY { background: var(--half-bg); color: var(--half); }
+    .badge.ABSENT { background: var(--absent-bg); color: var(--absent); }
+    .badge.INCOMPLETE { background: var(--incomplete-bg); color: var(--incomplete); }
+
+    /* ---- Student result ---- */
+    .student-card { border-left: 10px solid var(--muted); }
+    .student-card.PRESENT { border-left-color: var(--present); }
+    .student-card.HALF_DAY { border-left-color: var(--half); }
+    .student-card.ABSENT { border-left-color: var(--absent); }
+    .student-card.INCOMPLETE { border-left-color: var(--incomplete); }
+
+    .status-big { font-size: clamp(26px, 6vw, 40px); font-weight: bold; margin: 4px 0 8px; }
+    .student-card.PRESENT .status-big { color: var(--present); }
+    .student-card.HALF_DAY .status-big { color: var(--half); }
+    .student-card.ABSENT .status-big { color: var(--absent); }
+    .student-card.INCOMPLETE .status-big { color: var(--incomplete); }
+
+    .student-name { font-size: 20px; font-weight: bold; overflow-wrap: anywhere; }
+    .student-meta { color: var(--muted); font-size: 14px; margin-top: 2px; overflow-wrap: anywhere; }
+    .reason { margin: 12px 0; line-height: 1.5; }
+
+    .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
+    .detail { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
+    .detail .k { font-size: 12px; color: var(--muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; }
+    .detail .v { font-weight: bold; margin-top: 2px; overflow-wrap: anywhere; }
+
+    .override-note { background: var(--half-bg); color: var(--half); border-radius: 10px; padding: 10px 12px; margin: 12px 0; font-size: 14px; line-height: 1.5; }
+
+    .actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+    @media (max-width: 560px) { .actions { grid-template-columns: 1fr; } }
+    .actions .present { background: var(--present); color: #fff; }
+    .actions .half { background: var(--half); color: #fff; }
+    .actions .absent { background: var(--absent); color: #fff; }
+
+    .breaks { margin-top: 12px; font-size: 13px; color: var(--muted); }
+    .breaks div { padding: 3px 0; border-bottom: 1px solid var(--line); }
+
+    /* ---- Tracker ---- */
+    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat {
+      background: var(--card);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 12px;
+      border-top: 6px solid var(--muted);
+    }
+
+    .stat .k { font-size: 12px; color: var(--muted); font-weight: bold; text-transform: uppercase; }
+    .stat .v { font-size: clamp(28px, 5vw, 40px); font-weight: bold; line-height: 1.1; margin-top: 4px; }
+    .stat.PRESENT { border-top-color: var(--present); } .stat.PRESENT .v { color: var(--present); }
+    .stat.HALF_DAY { border-top-color: var(--half); } .stat.HALF_DAY .v { color: var(--half); }
+    .stat.INCOMPLETE { border-top-color: var(--incomplete); } .stat.INCOMPLETE .v { color: var(--incomplete); }
+    .stat.ABSENT { border-top-color: var(--absent); } .stat.ABSENT .v { color: var(--absent); }
+
+    .filters { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px; }
+    @media (max-width: 700px) { .filters { grid-template-columns: 1fr; } }
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
+    .toolbar button { min-height: 42px; font-size: 14px; padding: 10px 14px; }
+
+    .student-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 4px;
+      border-bottom: 1px solid var(--line);
+      cursor: pointer;
+    }
+
+    .student-row:hover { background: var(--bg); }
+    .student-row .who { font-weight: bold; overflow-wrap: anywhere; }
+    .student-row .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+    .student-row .right { text-align: right; flex-shrink: 0; }
+    .student-row .times { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .edited { font-size: 11px; color: var(--half); font-weight: bold; }
+    #studentList { max-height: 560px; overflow-y: auto; border-top: 1px solid var(--line); margin-top: 10px; }
+    .empty { padding: 24px 4px; text-align: center; color: var(--muted); }
+
+    .print-title { display: none; }
+
+    @media print {
+      body { background: #fff; color: #000; padding: 0; }
+      header, .main-tabs, #lookupPanel, .filters, .toolbar, #login { display: none !important; }
+      .print-title { display: block; margin-bottom: 8px; }
+      .card, .stat { box-shadow: none; border: 1px solid #999; }
+      #studentList { max-height: none; overflow: visible; }
+      .student-row { break-inside: avoid; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Student Event Status Tracker</h1>
+      <button id="lockButton" class="secondary hidden" type="button" onclick="lockApp()">Lock</button>
+    </header>
+
+    <!-- LOGIN -->
+    <section id="login" class="card">
+      <h2>Staff access</h2>
+      <p class="muted small">Enter your name and the staff PIN to look up students and update their status.</p>
+
+      <label for="staffName">Your name</label>
+      <input id="staffName" type="text" placeholder="Staff name" autocomplete="name">
+
+      <label for="pin">Staff PIN</label>
+      <input id="pin" type="password" placeholder="Enter staff PIN" autocomplete="current-password">
+
+      <button id="loginButton" type="button" style="width:100%;margin-top:14px;" onclick="login()">Open tracker</button>
+      <div id="loginMessage" role="alert"></div>
+    </section>
+
+    <!-- APP -->
+    <main id="app" class="hidden">
+      <div class="main-tabs">
+        <button id="tabLookup" class="active" type="button" onclick="showPanel('lookup')">Scan / look up a student</button>
+        <button id="tabTracker" type="button" onclick="showPanel('tracker')">Class tracker</button>
+      </div>
+
+      <!-- LOOKUP -->
+      <section id="lookupPanel">
+        <div class="card">
+          <h2>Scan the TUP ID</h2>
+          <p class="muted small">Scan the QR code on the student's ID, or type the student number below.</p>
+
+          <label for="cameraSelect">Camera</label>
+          <select id="cameraSelect"><option value="">Select a camera</option></select>
+
+          <div class="row2" style="margin-top:10px;">
+            <button id="startButton" type="button" onclick="startScanner()">Start camera</button>
+            <button id="stopButton" class="secondary" type="button" onclick="stopScanner()">Stop camera</button>
+          </div>
+
+          <div id="reader"></div>
+
+          <label for="photoInput" class="small">Camera blocked? Take a photo of the QR code:</label>
+          <input id="photoInput" type="file" accept="image/*" capture="environment" onchange="scanPhoto(this)">
+          <div id="fileReader" style="display:none"></div>
+
+          <label for="manualId">Or type the student number (TUPM format)</label>
+          <div class="manual-row">
+            <input id="manualId" type="text" placeholder="TUPM-00-0000" autocapitalize="characters" autocomplete="off">
+            <button id="manualButton" type="button" onclick="manualLookup()">Check status</button>
+          </div>
+
+          <div id="lookupMessage" class="message hidden" role="status"></div>
+        </div>
+
+        <!-- RESULT -->
+        <div id="studentCard" class="card student-card hidden">
+          <span id="badge" class="badge"></span>
+          <div id="statusBig" class="status-big"></div>
+          <div id="studentName" class="student-name"></div>
+          <div id="studentMeta" class="student-meta"></div>
+          <div id="reason" class="reason"></div>
+          <div id="overrideNote" class="override-note hidden"></div>
+
+          <div class="details" id="details"></div>
+
+          <label for="noteInput">Note for the log (optional)</label>
+          <input id="noteInput" type="text" maxlength="200" placeholder="Example: attended, forgot to scan out">
+
+          <div class="actions">
+            <button class="present" type="button" onclick="applyStatus('PRESENT')">Mark Present</button>
+            <button class="half" type="button" onclick="applyStatus('HALF_DAY')">Mark Half Day</button>
+            <button class="absent" type="button" onclick="applyStatus('ABSENT')">Mark Absent</button>
+          </div>
+
+          <button id="clearButton" class="secondary hidden" type="button" style="width:100%;margin-top:10px;" onclick="clearOverride()">
+            Remove manual change (use automatic status)
+          </button>
+
+          <div id="breaks" class="breaks"></div>
+        </div>
+      </section>
+
+      <!-- TRACKER -->
+      <section id="trackerPanel" class="hidden">
+        <p class="print-title"><strong>Student Event Status Tracker</strong> <span id="printInfo"></span></p>
+
+        <div class="stats">
+          <div class="stat"><div class="k">Students shown</div><div class="v" id="cTotal">0</div></div>
+          <div class="stat PRESENT"><div class="k">Present</div><div class="v" id="cPresent">0</div></div>
+          <div class="stat HALF_DAY"><div class="k">Half day</div><div class="v" id="cHalf">0</div></div>
+          <div class="stat INCOMPLETE"><div class="k">No check-out</div><div class="v" id="cIncomplete">0</div></div>
+          <div class="stat ABSENT"><div class="k">Absent</div><div class="v" id="cAbsent">0</div></div>
+        </div>
+
+        <div class="card">
+          <div class="filters">
+            <div>
+              <label for="sectionFilter" style="margin-top:0">Section</label>
+              <select id="sectionFilter"><option value="">All sections</option></select>
+            </div>
+            <div>
+              <label for="statusFilter" style="margin-top:0">Status</label>
+              <select id="statusFilter">
+                <option value="">All statuses</option>
+                <option value="PRESENT">Present</option>
+                <option value="HALF_DAY">Half Day Present</option>
+                <option value="INCOMPLETE">Incomplete (no check-out)</option>
+                <option value="ABSENT">Absent</option>
+              </select>
+            </div>
+            <div>
+              <label for="searchBox" style="margin-top:0">Search</label>
+              <input id="searchBox" type="search" placeholder="Name or student number">
+            </div>
+          </div>
+
+          <div class="toolbar">
+            <button type="button" onclick="loadBoard(true)">Refresh</button>
+            <button type="button" onclick="downloadCsv()">Download CSV for the professor</button>
+            <button type="button" class="secondary" onclick="window.print()">Print</button>
+            <span id="boardInfo" class="muted small"></span>
+          </div>
+
+          <div id="studentList"></div>
+          <div id="listNote" class="muted small" style="margin-top:10px;"></div>
+        </div>
+
+        <p class="muted small">
+          <strong>How the status is decided:</strong> Present = checked in and checked out. Half Day = went out on a
+          toilet or lunch break and never came back in or checked out. Absent = never checked in. No check-out =
+          checked in but no check-out was scanned. Staff can change any status manually, and every change is saved
+          in the Status Log sheet.
+        </p>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Your Apps Script web app link (same one the scanner uses).
+    const API_URL = "https://script.google.com/macros/s/AKfycbzJeJ9dP4JvQdXXrDoi_4L2AImgt6gh1_LF0gd5ao7ne3O2OuQjflHzVYvbsyiwle2fug/exec";
+
+    const LABELS = {
+      PRESENT: "Present",
+      HALF_DAY: "Half Day Present",
+      ABSENT: "Absent",
+      INCOMPLETE: "Incomplete (no check-out)"
+    };
+
+    const MAX_ROWS = 500;
+    const REFRESH_MS = 30000;
+
+    let pin = "";
+    let staff = "";
+    let board = null;
+    let current = null;          // student shown in the lookup card
+    let scanner = null;
+    let scannerRunning = false;
+    let handlingScan = false;
+    let busy = false;
+    let timer = null;
+    let panel = "lookup";
+
+    function $(id) {
+      return document.getElementById(id);
+    }
+
+    function callApi(action, args) {
+      return fetch(API_URL, {
+        method: "POST",
+        // text/plain avoids a CORS preflight, which Apps Script cannot answer
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify({ action: action, args: args })
+      })
+      .then(function (response) { return response.json(); })
+      .then(function (json) {
+        if (!json.ok) {
+          throw new Error(json.error || "Request failed.");
+        }
+        return json.data;
+      });
+    }
+
+    function friendlyError(error) {
+      const text = (error && error.message) || "Connection problem.";
+
+      if (/unknown action/i.test(text)) {
+        return "The tracker needs the newest Code.gs. In Apps Script choose Deploy > Manage deployments > Edit > New version > Deploy.";
+      }
+
+      if (/failed to fetch|networkerror|load failed/i.test(text)) {
+        return "Cannot reach the Apps Script link. Check the internet connection and that the deployment access is set to Anyone.";
+      }
+
+      return text;
+    }
+
+    // ---------- Sound ----------
+    let audioCtx = null;
+
+    function initAudio() {
+      try {
+        if (!audioCtx) {
+          const AudioCtx = window.AudioContext || window.webkitAudioContext;
+          if (AudioCtx) { audioCtx = new AudioCtx(); }
+        }
+        if (audioCtx && audioCtx.state === "suspended") { audioCtx.resume(); }
+      } catch (e) {}
+    }
+
+    function beep(kind) {
+      try {
+        if (!audioCtx) { return; }
+        const t = audioCtx.currentTime;
+        const tones = kind === "error" ? [[300, 0, 0.35]] : [[2300, 0, 0.11]];
+
+        tones.forEach(function (tone) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "square";
+          osc.frequency.value = tone[0];
+          gain.gain.setValueAtTime(0.0001, t + tone[1]);
+          gain.gain.exponentialRampToValueAtTime(0.2, t + tone[1] + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + tone[1] + tone[2]);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(t + tone[1]);
+          osc.stop(t + tone[1] + tone[2] + 0.02);
+        });
+      } catch (e) {}
+    }
+
+    // ---------- Login ----------
+    function login() {
+      initAudio();
+
+      const name = $("staffName").value.trim();
+      const entered = $("pin").value.trim();
+
+      if (!name || !entered) {
+        $("loginMessage").textContent = "Enter your name and the staff PIN.";
+        return;
+      }
+
+      $("loginButton").disabled = true;
+      $("loginButton").textContent = "Checking...";
+      $("loginMessage").textContent = "";
+
+      callApi("getStatusBoard", [entered])
+        .then(function (result) {
+          $("loginButton").disabled = false;
+          $("loginButton").textContent = "Open tracker";
+
+          if (!result || !result.success) {
+            $("loginMessage").textContent = (result && result.message) || "Could not open the tracker.";
+            return;
+          }
+
+          pin = entered;
+          staff = name;
+
+          try {
+            sessionStorage.setItem("statusPin", pin);
+            sessionStorage.setItem("statusStaff", staff);
+          } catch (e) {}
+
+          $("login").classList.add("hidden");
+          $("app").classList.remove("hidden");
+          $("lockButton").classList.remove("hidden");
+
+          applyBoard(result);
+          loadCameras();
+
+          if (timer) { clearInterval(timer); }
+          timer = setInterval(function () {
+            if (panel === "tracker" && !document.hidden) { loadBoard(false); }
+          }, REFRESH_MS);
+        })
+        .catch(function (error) {
+          $("loginButton").disabled = false;
+          $("loginButton").textContent = "Open tracker";
+          $("loginMessage").textContent = friendlyError(error);
+        });
+    }
+
+    function lockApp() {
+      stopScanner();
+
+      pin = "";
+      staff = "";
+      board = null;
+      current = null;
+
+      try {
+        sessionStorage.removeItem("statusPin");
+        sessionStorage.removeItem("statusStaff");
+      } catch (e) {}
+
+      if (timer) { clearInterval(timer); timer = null; }
+
+      $("pin").value = "";
+      $("app").classList.add("hidden");
+      $("lockButton").classList.add("hidden");
+      $("studentCard").classList.add("hidden");
+      $("login").classList.remove("hidden");
+    }
+
+    function showPanel(name) {
+      panel = name;
+      $("lookupPanel").classList.toggle("hidden", name !== "lookup");
+      $("trackerPanel").classList.toggle("hidden", name !== "tracker");
+      $("tabLookup").className = name === "lookup" ? "active" : "";
+      $("tabTracker").className = name === "tracker" ? "active" : "";
+
+      if (name === "tracker") {
+        stopScanner();
+        loadBoard(false);
+      }
+    }
+
+    // ---------- Scanner ----------
+    function setMessage(kind, text) {
+      const box = $("lookupMessage");
+
+      if (!text) {
+        box.classList.add("hidden");
+        return;
+      }
+
+      box.className = "message " + kind;
+      box.textContent = text;
+    }
+
+    async function loadCameras() {
+      const select = $("cameraSelect");
+      select.replaceChildren();
+
+      const first = document.createElement("option");
+      first.value = "";
+      first.textContent = "Select a camera";
+      select.appendChild(first);
+
+      try {
+        if (typeof Html5Qrcode === "undefined") {
+          throw new Error("Scanner library did not load.");
+        }
+
+        const cameras = await Html5Qrcode.getCameras();
+
+        cameras.forEach(function (camera, index) {
+          const option = document.createElement("option");
+          option.value = camera.id;
+          option.textContent = camera.label || ("Camera " + (index + 1));
+          select.appendChild(option);
+        });
+
+        const rear = cameras.findIndex(function (c) { return /back|rear|environment/i.test(c.label || ""); });
+        select.selectedIndex = cameras.length ? (rear >= 0 ? rear + 1 : 1) : 0;
+      } catch (error) {
+        // The camera is optional: manual entry and photo scanning still work.
+      }
+    }
+
+    async function startScanner() {
+      initAudio();
+
+      if (scannerRunning || busy) {
+        return;
+      }
+
+      if (typeof Html5Qrcode === "undefined") {
+        setMessage("error", "The scanner library did not load. Use the photo option or type the student number.");
+        return;
+      }
+
+      const cameraId = $("cameraSelect").value;
+
+      try {
+        if (!scanner) {
+          scanner = new Html5Qrcode("reader");
+        }
+
+        await scanner.start(
+          cameraId || { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          onScan,
+          function () {}
+        );
+
+        scannerRunning = true;
+        setMessage("info", "Point the camera at the QR code on the TUP ID.");
+      } catch (error) {
+        scannerRunning = false;
+        setMessage("error", "Could not start the camera: " + ((error && error.message) || error) +
+          "\nUse the photo option or type the student number.");
+      }
+    }
+
+    async function stopScanner() {
+      if (scanner && scannerRunning) {
+        try { await scanner.stop(); } catch (e) {}
+      }
+
+      scannerRunning = false;
+    }
+
+    async function onScan(text) {
+      if (handlingScan || busy) {
+        return;
+      }
+
+      handlingScan = true;
+      beep("scan");
+      await stopScanner();
+      handlingScan = false;
+
+      lookup(text);
+    }
+
+    async function scanPhoto(input) {
+      initAudio();
+
+      if (!input.files.length || busy) {
+        return;
+      }
+
+      const file = input.files[0];
+      input.value = "";
+
+      try {
+        await stopScanner();
+        const reader = new Html5Qrcode("fileReader");
+        const text = await reader.scanFile(file, false);
+        beep("scan");
+        lookup(text);
+      } catch (error) {
+        setMessage("error", "No QR code found in the photo. Retake it closer and in good light, or type the student number.");
+      }
+    }
+
+    // Accepts tupm-25-0637, TUPM250637 or any text containing the number.
+    function normalizeId(text) {
+      const match = String(text || "").match(/TUPM\s*-?\s*(\d{2})\s*-?\s*(\d{3,6})/i);
+      return match ? "TUPM-" + match[1] + "-" + match[2] : "";
+    }
+
+    function manualLookup() {
+      initAudio();
+
+      const typed = $("manualId").value;
+
+      if (!normalizeId(typed)) {
+        beep("error");
+        setMessage("error", "Please use the TUPM format, for example TUPM-25-0637.");
+        return;
+      }
+
+      beep("scan");
+      lookup(normalizeId(typed));
+    }
+
+    // ---------- Look up one student ----------
+    function lookup(code) {
+      if (busy) {
+        return;
+      }
+
+      busy = true;
+      setMessage("info", "Checking...");
+
+      callApi("getStudentStatus", [pin, code])
+        .then(function (result) {
+          busy = false;
+
+          if (!result || !result.success) {
+            beep("error");
+            $("studentCard").classList.add("hidden");
+            setMessage("error", (result && result.message) || "Could not check this student.");
+            return;
+          }
+
+          setMessage("", "");
+          showStudent(result.student, result.breaks || []);
+        })
+        .catch(function (error) {
+          busy = false;
+          beep("error");
+          setMessage("error", friendlyError(error));
+        });
+    }
+
+    function shortTime(text) {
+      const match = /(\d{2}:\d{2})(:\d{2})?/.exec(String(text || ""));
+      return match ? match[1] : String(text || "");
+    }
+
+    function reasonText(s) {
+      if (s.override) {
+        return "Manually marked " + LABELS[s.override.status] + " by " + (s.override.by || "staff") +
+          (s.override.at ? " (" + s.override.at + ")" : "") + ". The automatic result was " + LABELS[s.auto] + ".";
+      }
+
+      if (s.auto === "PRESENT") {
+        return "Completed the event: checked in at " + shortTime(s.arr) + " and checked out at " + shortTime(s.outAt) + ".";
+      }
+
+      if (s.auto === "HALF_DAY") {
+        return "Went OUT on a " + (s.brk === "TOILET" ? "toilet" : "lunch") + " break at " +
+          shortTime(s.brkSince) + " and never came back IN, and has not checked out.";
+      }
+
+      if (s.auto === "INCOMPLETE") {
+        return "Checked in at " + shortTime(s.arr) + " but no check-out has been recorded yet.";
+      }
+
+      return "Never checked in to the event.";
+    }
+
+    function showStudent(s, breaks) {
+      current = s;
+
+      const card = $("studentCard");
+      card.className = "card student-card " + s.status;
+
+      $("badge").className = "badge " + s.status;
+      $("badge").textContent = LABELS[s.status];
+      $("statusBig").textContent = LABELS[s.status].toUpperCase();
+      $("studentName").textContent = s.name || "(no name)";
+      $("studentMeta").textContent = [s.id, s.section, s.course, s.inRoster ? "" : "Not on a class list"]
+        .filter(Boolean).join("  |  ");
+      $("reason").textContent = reasonText(s);
+
+      const note = $("overrideNote");
+
+      if (s.override) {
+        note.textContent = "Manual change by " + (s.override.by || "staff") +
+          (s.override.note ? " - " + s.override.note : "");
+        note.classList.remove("hidden");
+      } else {
+        note.classList.add("hidden");
+      }
+
+      $("clearButton").classList.toggle("hidden", !s.override);
+
+      const details = $("details");
+      details.replaceChildren();
+
+      [
+        ["Check-in", s.arr ? shortTime(s.arr) : "None"],
+        ["Check-out", s.out ? shortTime(s.outAt) : "None"],
+        ["On a break now", s.brk ? (s.brk === "TOILET" ? "Toilet" : "Lunch") + " since " + shortTime(s.brkSince) : "No"],
+        ["Toilet breaks", String(s.tb)],
+        ["Lunch breaks", String(s.lb)],
+        ["Automatic status", LABELS[s.auto]]
+      ].forEach(function (pair) {
+        const box = document.createElement("div");
+        box.className = "detail";
+
+        const k = document.createElement("div");
+        k.className = "k";
+        k.textContent = pair[0];
+
+        const v = document.createElement("div");
+        v.className = "v";
+        v.textContent = pair[1];
+
+        box.appendChild(k);
+        box.appendChild(v);
+        details.appendChild(box);
+      });
+
+      const list = $("breaks");
+      list.replaceChildren();
+
+      if (breaks.length) {
+        const title = document.createElement("div");
+        title.textContent = "Recent break scans:";
+        title.style.fontWeight = "bold";
+        list.appendChild(title);
+
+        breaks.forEach(function (b) {
+          const line = document.createElement("div");
+          line.textContent = shortTime(b.time) + "  " + b.type + " " + b.action +
+            (b.minutes ? " (" + b.minutes + " min away)" : "");
+          list.appendChild(line);
+        });
+      }
+
+      $("noteInput").value = "";
+      card.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // ---------- Change the status ----------
+    function applyStatus(code) {
+      if (!current || busy) {
+        return;
+      }
+
+      const ok = window.confirm("Mark " + (current.name || current.id) + " as " + LABELS[code] + "?");
+
+      if (!ok) {
+        return;
+      }
+
+      busy = true;
+
+      callApi("setStudentStatus", [pin, current.id, code, staff, $("noteInput").value.trim()])
+        .then(function (result) {
+          busy = false;
+
+          if (!result || !result.success) {
+            beep("error");
+            setMessage("error", (result && result.message) || "Could not save the status.");
+            return;
+          }
+
+          beep("scan");
+          setMessage("ok", result.message);
+          showStudent(result.student, []);
+          loadBoard(false);
+        })
+        .catch(function (error) {
+          busy = false;
+          beep("error");
+          setMessage("error", friendlyError(error));
+        });
+    }
+
+    function clearOverride() {
+      if (!current || busy || !current.override) {
+        return;
+      }
+
+      if (!window.confirm("Remove the manual change for " + (current.name || current.id) + "?")) {
+        return;
+      }
+
+      busy = true;
+
+      callApi("clearStudentStatus", [pin, current.id, staff])
+        .then(function (result) {
+          busy = false;
+
+          if (!result || !result.success) {
+            beep("error");
+            setMessage("error", (result && result.message) || "Could not remove the change.");
+            return;
+          }
+
+          setMessage("ok", result.message);
+          showStudent(result.student, []);
+          loadBoard(false);
+        })
+        .catch(function (error) {
+          busy = false;
+          setMessage("error", friendlyError(error));
+        });
+    }
+
+    // ---------- Class tracker ----------
+    function loadBoard(showMessage) {
+      if (!pin) {
+        return;
+      }
+
+      if (showMessage) {
+        $("boardInfo").textContent = "Refreshing...";
+      }
+
+      callApi("getStatusBoard", [pin])
+        .then(function (result) {
+          if (!result || !result.success) {
+            $("boardInfo").textContent = (result && result.message) || "Could not refresh.";
+            return;
+          }
+
+          applyBoard(result);
+        })
+        .catch(function (error) {
+          $("boardInfo").textContent = friendlyError(error);
+        });
+    }
+
+    function applyBoard(result) {
+      board = result;
+
+      const select = $("sectionFilter");
+      const keep = select.value;
+
+      select.replaceChildren();
+
+      const all = document.createElement("option");
+      all.value = "";
+      all.textContent = "All sections";
+      select.appendChild(all);
+
+      (result.sections || []).forEach(function (s) {
+        const option = document.createElement("option");
+        option.value = s.section;
+        option.textContent = s.section + " (" + s.total + ")";
+        select.appendChild(option);
+      });
+
+      select.value = keep;
+
+      $("boardInfo").textContent = "Updated " + String(result.generatedAt || "").slice(11) +
+        " | class lists read: " + (result.rosterTabs || []).join(", ");
+
+      renderTracker();
+    }
+
+    function filteredStudents() {
+      if (!board) {
+        return [];
+      }
+
+      const section = $("sectionFilter").value;
+      const status = $("statusFilter").value;
+      const query = $("searchBox").value.trim().toLowerCase();
+
+      return board.students.filter(function (s) {
+        return (!section || s.section === section) &&
+               (!status || s.status === status) &&
+               (!query || (s.name + " " + s.id).toLowerCase().indexOf(query) !== -1);
+      }).sort(function (a, b) {
+        return a.section.localeCompare(b.section, undefined, { numeric: true }) ||
+               String(a.name).localeCompare(String(b.name));
+      });
+    }
+
+    function renderTracker() {
+      const rows = filteredStudents();
+      const section = $("sectionFilter").value;
+
+      // Counts follow the section / search filters, not the status filter.
+      const base = board.students.filter(function (s) {
+        const query = $("searchBox").value.trim().toLowerCase();
+        return (!section || s.section === section) &&
+               (!query || (s.name + " " + s.id).toLowerCase().indexOf(query) !== -1);
+      });
+
+      const count = function (code) {
+        return base.filter(function (s) { return s.status === code; }).length;
+      };
+
+      $("cTotal").textContent = base.length;
+      $("cPresent").textContent = count("PRESENT");
+      $("cHalf").textContent = count("HALF_DAY");
+      $("cIncomplete").textContent = count("INCOMPLETE");
+      $("cAbsent").textContent = count("ABSENT");
+
+      $("printInfo").textContent = "- " + (section || "All sections") + " - " +
+        String(board.generatedAt || "").slice(0, 16);
+
+      const list = $("studentList");
+      list.replaceChildren();
+
+      if (rows.length === 0) {
+        const empty = document.createElement("div");
+        empty.className = "empty";
+        empty.textContent = "No students match.";
+        list.appendChild(empty);
+        $("listNote").textContent = "";
+        return;
+      }
+
+      rows.slice(0, MAX_ROWS).forEach(function (s) {
+        const row = document.createElement("div");
+        row.className = "student-row";
+        row.addEventListener("click", function () { openStudent(s.id); });
+
+        const left = document.createElement("div");
+
+        const who = document.createElement("div");
+        who.className = "who";
+        who.textContent = s.name || "(no name)";
+
+        const meta = document.createElement("div");
+        meta.className = "meta";
+        meta.textContent = [s.id, s.section, s.inRoster ? "" : "Not on a class list"].filter(Boolean).join("  |  ");
+
+        left.appendChild(who);
+        left.appendChild(meta);
+
+        const right = document.createElement("div");
+        right.className = "right";
+
+        const badge = document.createElement("span");
+        badge.className = "badge " + s.status;
+        badge.textContent = LABELS[s.status];
+        right.appendChild(badge);
+
+        if (s.override) {
+          const edited = document.createElement("div");
+          edited.className = "edited";
+          edited.textContent = "manually changed";
+          right.appendChild(edited);
+        }
+
+        const times = document.createElement("div");
+        times.className = "times";
+        times.textContent = s.arr
+          ? "In " + shortTime(s.arr) + (s.out ? "  Out " + shortTime(s.outAt) : (s.brk ? "  On " + s.brk.toLowerCase() + " break" : ""))
+          : "No check-in";
+        right.appendChild(times);
+
+        row.appendChild(left);
+        row.appendChild(right);
+        list.appendChild(row);
+      });
+
+      $("listNote").textContent = rows.length > MAX_ROWS
+        ? "Showing the first " + MAX_ROWS + " of " + rows.length + ". Use the filters to narrow the list."
+        : rows.length + " student" + (rows.length === 1 ? "" : "s") + " shown. Tap a student to open and change the status.";
+    }
+
+    function openStudent(id) {
+      showPanel("lookup");
+      lookup(id);
+    }
+
+    // ---------- CSV for the professor ----------
+    const CSV_COLUMNS = [
+      ["Section", function (s) { return s.section; }],
+      ["Student ID", function (s) { return s.id; }],
+      ["Name of Student", function (s) { return s.name; }],
+      ["Course", function (s) { return s.course; }],
+      ["Final Status", function (s) { return LABELS[s.status]; }],
+      ["Automatic Status", function (s) { return LABELS[s.auto]; }],
+      ["Manually Changed", function (s) { return s.override ? "YES" : "NO"; }],
+      ["Changed By", function (s) { return s.override ? s.override.by : ""; }],
+      ["Change Note", function (s) { return s.override ? s.override.note : ""; }],
+      ["Check-in Time", function (s) { return s.arr; }],
+      ["Check-out Time", function (s) { return s.out ? s.outAt : ""; }],
+      ["On Break Now", function (s) { return s.brk || "NO"; }],
+      ["Toilet Breaks", function (s) { return s.tb; }],
+      ["Lunch Breaks", function (s) { return s.lb; }],
+      ["On Class List", function (s) { return s.inRoster ? "YES" : "NO"; }]
+    ];
+
+    function csvCell(value) {
+      let text = String(value === null || value === undefined ? "" : value);
+
+      // Stop spreadsheet formulas in Excel / Google Sheets.
+      if (/^[=+\-@\t\r]/.test(text)) {
+        text = "'" + text;
+      }
+
+      return '"' + text.replace(/"/g, '""') + '"';
+    }
+
+    function buildCsv(students) {
+      const lines = [CSV_COLUMNS.map(function (c) { return csvCell(c[0]); }).join(",")];
+
+      students.forEach(function (s) {
+        lines.push(CSV_COLUMNS.map(function (c) { return csvCell(c[1](s)); }).join(","));
+      });
+
+      return lines.join("\r\n");
+    }
+
+    function downloadCsv() {
+      const rows = filteredStudents();
+
+      if (rows.length === 0) {
+        $("boardInfo").textContent = "Nothing to download for the current filters.";
+        return;
+      }
+
+      const d = new Date();
+      const two = function (n) { return String(n).padStart(2, "0"); };
+      const stamp = d.getFullYear() + "-" + two(d.getMonth() + 1) + "-" + two(d.getDate());
+      const section = $("sectionFilter").value.replace(/\s+/g, "") || "all-sections";
+
+      // The BOM makes Excel read names with accents correctly.
+      const blob = new Blob(["\uFEFF" + buildCsv(rows)], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = "benta-status-tracker-" + section + "-" + stamp + ".csv";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+
+      $("boardInfo").textContent = "Downloaded " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ".";
+    }
+
+    // ---------- Events ----------
+    $("sectionFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
+    $("statusFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
+    $("searchBox").addEventListener("input", function () { if (board) { renderTracker(); } });
+
+    $("manualId").addEventListener("keydown", function (event) {
+      if (event.key === "Enter") { manualLookup(); }
+    });
+
+    $("pin").addEventListener("keydown", function (event) {
+      if (event.key === "Enter") { login(); }
+    });
+
+    // Restore the session after a refresh (same browser tab).
+    (function restore() {
+      try {
+        const savedPin = sessionStorage.getItem("statusPin");
+        const savedStaff = sessionStorage.getItem("statusStaff");
+
+        if (savedPin && savedStaff) {
+          $("pin").value = savedPin;
+          $("staffName").value = savedStaff;
+          login();
+        }
+      } catch (e) {}
+    })();
+  </script>
+</body>
+</html>
