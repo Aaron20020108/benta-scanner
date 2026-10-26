@@ -20,6 +20,7 @@
       --half: #b45309;
       --absent: #b91c1c;
       --incomplete: #1d4ed8;
+      --food: #0f766e;
       --present-bg: #dcfce7;
       --half-bg: #fef3c7;
       --absent-bg: #fee2e2;
@@ -39,6 +40,7 @@
         --half: #fbbf24;
         --absent: #f87171;
         --incomplete: #93c5fd;
+        --food: #2dd4bf;
         --present-bg: rgba(74, 222, 128, 0.15);
         --half-bg: rgba(251, 191, 36, 0.15);
         --absent-bg: rgba(248, 113, 113, 0.18);
@@ -113,7 +115,8 @@
     #loginMessage { margin-top: 12px; color: var(--absent); min-height: 20px; font-size: 14px; }
 
     /* ---- Main tabs ---- */
-    .main-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+    .main-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 560px) { .main-tabs button { font-size: 13px; padding: 8px 4px; } }
     .main-tabs button { background: var(--card); color: var(--text); border: 1px solid var(--line); box-shadow: var(--shadow); }
     .main-tabs button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
@@ -122,6 +125,35 @@
     #reader video { border-radius: 10px; }
     .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .manual-row { display: flex; gap: 10px; }
+
+    /* TUPM-__-______ student number entry */
+    .id-input { display: flex; align-items: stretch; flex: 1; min-width: 0; }
+
+    .id-input .fixed {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      font-weight: bold;
+      color: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .id-input .fixed.first { border-right: 0; border-radius: 9px 0 0 9px; }
+    .id-input .fixed.dash { border-left: 0; border-right: 0; padding: 0 6px; }
+
+    .id-input input {
+      min-width: 0;
+      margin: 0;
+      border-radius: 0;
+      text-align: center;
+      letter-spacing: 0.12em;
+      font-weight: bold;
+    }
+
+    .id-input input.year { width: 72px; flex: 0 0 72px; }
+    .id-input input.number { flex: 1; border-radius: 0 9px 9px 0; }
     .manual-row button { white-space: nowrap; }
 
     .message {
@@ -170,6 +202,23 @@
     .student-meta { color: var(--muted); font-size: 14px; margin-top: 2px; overflow-wrap: anywhere; }
     .reason { margin: 12px 0; line-height: 1.5; }
 
+    .food-line {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      margin: 0 0 8px;
+    }
+
+    .food-line.yes { background: var(--present-bg); color: var(--present); }
+    .food-line.no { background: var(--half-bg); color: var(--half); }
+    .food-line.na { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+
+    .foodmini { font-size: 12px; margin-top: 2px; font-weight: bold; }
+    .foodmini.yes { color: var(--present); }
+    .foodmini.no { color: var(--half); }
+    .foodmini.na { color: var(--muted); }
+
     .details { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 12px 0; }
     .detail { background: var(--bg); border-radius: 10px; padding: 10px 12px; }
     .detail .k { font-size: 12px; color: var(--muted); font-weight: bold; text-transform: uppercase; letter-spacing: 0.03em; }
@@ -187,7 +236,7 @@
     .breaks div { padding: 3px 0; border-bottom: 1px solid var(--line); }
 
     /* ---- Tracker ---- */
-    .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 14px; }
+    .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
     @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
 
     .stat {
@@ -204,8 +253,9 @@
     .stat.HALF_DAY { border-top-color: var(--half); } .stat.HALF_DAY .v { color: var(--half); }
     .stat.INCOMPLETE { border-top-color: var(--incomplete); } .stat.INCOMPLETE .v { color: var(--incomplete); }
     .stat.ABSENT { border-top-color: var(--absent); } .stat.ABSENT .v { color: var(--absent); }
+    .stat.FOOD { border-top-color: var(--food); } .stat.FOOD .v { color: var(--food); }
 
-    .filters { display: grid; grid-template-columns: 1fr 1fr 2fr; gap: 10px; }
+    .filters { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 10px; }
     @media (max-width: 700px) { .filters { grid-template-columns: 1fr; } }
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
     .toolbar button { min-height: 42px; font-size: 14px; padding: 10px 14px; }
@@ -269,6 +319,7 @@
       <div class="main-tabs">
         <button id="tabLookup" class="active" type="button" onclick="showPanel('lookup')">Scan / look up a student</button>
         <button id="tabTracker" type="button" onclick="showPanel('tracker')">Class tracker</button>
+        <button id="tabSettings" type="button" onclick="showPanel('settings')">Settings</button>
       </div>
 
       <!-- LOOKUP -->
@@ -291,11 +342,17 @@
           <input id="photoInput" type="file" accept="image/*" capture="environment" onchange="scanPhoto(this)">
           <div id="fileReader" style="display:none"></div>
 
-          <label for="manualId">Or type the student number (TUPM format)</label>
+          <label for="idYear">Or type the student number</label>
           <div class="manual-row">
-            <input id="manualId" type="text" placeholder="TUPM-00-0000" autocapitalize="characters" autocomplete="off">
+            <div class="id-input">
+              <span class="fixed first">TUPM-</span>
+              <input id="idYear" class="year" type="text" inputmode="numeric" maxlength="2" placeholder="__" aria-label="Year digits" autocomplete="off">
+              <span class="fixed dash">-</span>
+              <input id="idNumber" class="number" type="text" inputmode="numeric" maxlength="6" placeholder="______" aria-label="Student number digits" autocomplete="off">
+            </div>
             <button id="manualButton" type="button" onclick="manualLookup()">Check status</button>
           </div>
+          <div class="muted small" style="margin-top:6px;">Format: TUPM-__-______ (2 digits, then 3 to 6 digits). You can also paste the whole number.</div>
 
           <div id="lookupMessage" class="message hidden" role="status"></div>
         </div>
@@ -307,6 +364,7 @@
           <div id="studentName" class="student-name"></div>
           <div id="studentMeta" class="student-meta"></div>
           <div id="reason" class="reason"></div>
+          <div id="foodLine" class="food-line"></div>
           <div id="overrideNote" class="override-note hidden"></div>
 
           <div class="details" id="details"></div>
@@ -338,6 +396,7 @@
           <div class="stat HALF_DAY"><div class="k">Half day</div><div class="v" id="cHalf">0</div></div>
           <div class="stat INCOMPLETE"><div class="k">No check-out</div><div class="v" id="cIncomplete">0</div></div>
           <div class="stat ABSENT"><div class="k">Absent</div><div class="v" id="cAbsent">0</div></div>
+          <div class="stat FOOD"><div class="k">Food provided</div><div class="v" id="cFood">0</div></div>
         </div>
 
         <div class="card">
@@ -357,6 +416,15 @@
               </select>
             </div>
             <div>
+              <label for="foodFilter" style="margin-top:0">Food</label>
+              <select id="foodFilter">
+                <option value="">All</option>
+                <option value="provided">Food provided</option>
+                <option value="notyet">Not yet (checked in)</option>
+                <option value="walkin">Walk-in (no free food)</option>
+              </select>
+            </div>
+            <div>
               <label for="searchBox" style="margin-top:0">Search</label>
               <input id="searchBox" type="search" placeholder="Name or student number">
             </div>
@@ -369,6 +437,8 @@
             <span id="boardInfo" class="muted small"></span>
           </div>
 
+          <div id="tabsInfo" class="muted small" style="margin-top:10px;"></div>
+
           <div id="studentList"></div>
           <div id="listNote" class="muted small" style="margin-top:10px;"></div>
         </div>
@@ -378,6 +448,34 @@
           toilet or lunch break and never came back in or checked out. Absent = never checked in. No check-out =
           checked in but no check-out was scanned. Staff can change any status manually, and every change is saved
           in the Status Log sheet.
+        </p>
+      </section>
+
+      <!-- SETTINGS -->
+      <section id="settingsPanel" class="hidden">
+        <div class="card">
+          <h2>Change the staff PIN</h2>
+          <p class="muted small">
+            The same PIN is used on every page: the scanner, the live monitor, this tracker and the walk-in desk tools.
+            After you change it, everyone must use the new PIN. Use 6 or more characters with no spaces.
+          </p>
+
+          <label for="oldPin">Current PIN</label>
+          <input id="oldPin" type="password" autocomplete="current-password">
+
+          <label for="newPin">New PIN</label>
+          <input id="newPin" type="password" autocomplete="new-password">
+
+          <label for="newPin2">Repeat the new PIN</label>
+          <input id="newPin2" type="password" autocomplete="new-password">
+
+          <button id="changePinButton" type="button" style="width:100%;margin-top:14px;" onclick="changePin()">Change PIN</button>
+          <div id="pinMessage" class="message hidden" role="status"></div>
+        </div>
+
+        <p class="muted small">
+          Forgot the PIN? Open the Apps Script project, choose the function <strong>resetStaffPin</strong> and click Run.
+          The starting PIN written in the code (STAFF_PIN) works again.
         </p>
       </section>
     </main>
@@ -395,7 +493,7 @@
     };
 
     const MAX_ROWS = 500;
-    const REFRESH_MS = 30000;
+    const REFRESH_MS = 20000;
 
     let pin = "";
     let staff = "";
@@ -520,7 +618,7 @@
 
           if (timer) { clearInterval(timer); }
           timer = setInterval(function () {
-            if (panel === "tracker" && !document.hidden) { loadBoard(false); }
+            if (!document.hidden) { loadBoard(false); }
           }, REFRESH_MS);
         })
         .catch(function (error) {
@@ -556,12 +654,17 @@
       panel = name;
       $("lookupPanel").classList.toggle("hidden", name !== "lookup");
       $("trackerPanel").classList.toggle("hidden", name !== "tracker");
+      $("settingsPanel").classList.toggle("hidden", name !== "settings");
       $("tabLookup").className = name === "lookup" ? "active" : "";
       $("tabTracker").className = name === "tracker" ? "active" : "";
+      $("tabSettings").className = name === "settings" ? "active" : "";
+
+      if (name !== "lookup") {
+        stopScanner();
+      }
 
       if (name === "tracker") {
-        stopScanner();
-        loadBoard(false);
+        loadBoard(true);   // always read the class lists fresh when this tab opens
       }
     }
 
@@ -694,16 +797,76 @@
     function manualLookup() {
       initAudio();
 
-      const typed = $("manualId").value;
+      const year = $("idYear").value.replace(/\D/g, "");
+      const number = $("idNumber").value.replace(/\D/g, "");
 
-      if (!normalizeId(typed)) {
+      if (year.length !== 2 || number.length < 3) {
         beep("error");
-        setMessage("error", "Please use the TUPM format, for example TUPM-25-0637.");
+        setMessage("error", "Please fill in the student number: TUPM-__-______ (2 digits, then 3 to 6 digits).");
         return;
       }
 
       beep("scan");
-      lookup(normalizeId(typed));
+      lookup("TUPM-" + year + "-" + number);
+    }
+
+    // Digits only, jumps to the next box, and a whole pasted number is split.
+    function setupIdInputs() {
+      const year = $("idYear");
+      const number = $("idNumber");
+
+      function fillFrom(text) {
+        const id = normalizeId(text);
+
+        if (!id) {
+          return false;
+        }
+
+        const parts = id.split("-");
+        year.value = parts[1];
+        number.value = parts[2];
+        return true;
+      }
+
+      year.addEventListener("input", function () {
+        year.value = year.value.replace(/\D/g, "");
+
+        if (year.value.length >= 2) {
+          number.focus();
+        }
+      });
+
+      number.addEventListener("input", function () {
+        number.value = number.value.replace(/\D/g, "");
+      });
+
+      [year, number].forEach(function (box) {
+        box.addEventListener("paste", function (event) {
+          const clip = event.clipboardData || window.clipboardData;
+          const text = clip ? clip.getData("text") : "";
+
+          if (fillFrom(text)) {
+            event.preventDefault();
+            number.focus();
+          }
+        });
+
+        box.addEventListener("focus", function () {
+          if (box.select) { box.select(); }
+        });
+
+        box.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            manualLookup();
+          }
+        });
+      });
+
+      number.addEventListener("keydown", function (event) {
+        if (event.key === "Backspace" && number.value === "") {
+          year.focus();
+        }
+      });
     }
 
     // ---------- Look up one student ----------
@@ -739,6 +902,27 @@
     function shortTime(text) {
       const match = /(\d{2}:\d{2})(:\d{2})?/.exec(String(text || ""));
       return match ? match[1] : String(text || "");
+    }
+
+    function foodInfo(s) {
+      if (s.food) {
+        return {
+          cls: "yes",
+          text: "FOOD PROVIDED" + (s.foodAt ? " at " + shortTime(s.foodAt) : "") +
+            (s.foodBy ? " (by " + s.foodBy + ")" : ""),
+          short: "Food given" + (s.foodAt ? " " + shortTime(s.foodAt) : "")
+        };
+      }
+
+      if (s.walkIn) {
+        return { cls: "na", text: "NO FREE FOOD - walk-in registration", short: "No free food (walk-in)" };
+      }
+
+      if (!s.arr) {
+        return { cls: "no", text: "FOOD NOT PROVIDED - has not checked in", short: "Food not provided" };
+      }
+
+      return { cls: "no", text: "FOOD NOT PROVIDED YET", short: "Food not yet" };
     }
 
     function reasonText(s) {
@@ -777,6 +961,10 @@
         .filter(Boolean).join("  |  ");
       $("reason").textContent = reasonText(s);
 
+      const food = foodInfo(s);
+      $("foodLine").className = "food-line " + food.cls;
+      $("foodLine").textContent = food.text;
+
       const note = $("overrideNote");
 
       if (s.override) {
@@ -795,6 +983,7 @@
       [
         ["Check-in", s.arr ? shortTime(s.arr) : "None"],
         ["Check-out", s.out ? shortTime(s.outAt) : "None"],
+        ["Free food", s.food ? "Provided " + shortTime(s.foodAt) : (s.walkIn ? "Not eligible" : "Not yet")],
         ["On a break now", s.brk ? (s.brk === "TOILET" ? "Toilet" : "Lunch") + " since " + shortTime(s.brkSince) : "No"],
         ["Toilet breaks", String(s.tb)],
         ["Lunch breaks", String(s.lb)],
@@ -914,7 +1103,7 @@
         $("boardInfo").textContent = "Refreshing...";
       }
 
-      callApi("getStatusBoard", [pin])
+      callApi("getStatusBoard", [pin, showMessage === true])
         .then(function (result) {
           if (!result || !result.success) {
             $("boardInfo").textContent = (result && result.message) || "Could not refresh.";
@@ -950,8 +1139,20 @@
 
       select.value = keep;
 
-      $("boardInfo").textContent = "Updated " + String(result.generatedAt || "").slice(11) +
-        " | class lists read: " + (result.rosterTabs || []).join(", ");
+      $("boardInfo").textContent = "Updated " + String(result.generatedAt || "").slice(11);
+
+      const tabs = (result.rosterTabs || []).map(function (t) {
+        return typeof t === "string" ? t : String(t.name).trim() + " (" + t.students + ")";
+      });
+
+      let info = "Class lists read: " + (tabs.length ? tabs.join(", ") : "none found");
+
+      if ((result.ignoredTabs || []).length) {
+        info += ".  Tabs not read as class lists: " + result.ignoredTabs.join(", ") +
+          " (rename a class tab like BSEN4A to include it)";
+      }
+
+      $("tabsInfo").textContent = info;
 
       renderTracker();
     }
@@ -963,11 +1164,18 @@
 
       const section = $("sectionFilter").value;
       const status = $("statusFilter").value;
+      const foodFilter = $("foodFilter").value;
       const query = $("searchBox").value.trim().toLowerCase();
 
       return board.students.filter(function (s) {
+        const foodOk = !foodFilter ||
+          (foodFilter === "provided" && s.food) ||
+          (foodFilter === "notyet" && s.arr && !s.food && !s.walkIn) ||
+          (foodFilter === "walkin" && s.walkIn);
+
         return (!section || s.section === section) &&
                (!status || s.status === status) &&
+               foodOk &&
                (!query || (s.name + " " + s.id).toLowerCase().indexOf(query) !== -1);
       }).sort(function (a, b) {
         return a.section.localeCompare(b.section, undefined, { numeric: true }) ||
@@ -995,6 +1203,7 @@
       $("cHalf").textContent = count("HALF_DAY");
       $("cIncomplete").textContent = count("INCOMPLETE");
       $("cAbsent").textContent = count("ABSENT");
+      $("cFood").textContent = base.filter(function (s) { return s.food; }).length;
 
       $("printInfo").textContent = "- " + (section || "All sections") + " - " +
         String(board.generatedAt || "").slice(0, 16);
@@ -1051,6 +1260,12 @@
           : "No check-in";
         right.appendChild(times);
 
+        const food = foodInfo(s);
+        const foodMini = document.createElement("div");
+        foodMini.className = "foodmini " + food.cls;
+        foodMini.textContent = food.short;
+        right.appendChild(foodMini);
+
         row.appendChild(left);
         row.appendChild(right);
         list.appendChild(row);
@@ -1082,6 +1297,9 @@
       ["On Break Now", function (s) { return s.brk || "NO"; }],
       ["Toilet Breaks", function (s) { return s.tb; }],
       ["Lunch Breaks", function (s) { return s.lb; }],
+      ["Food Provided", function (s) { return s.food ? "YES" : (s.walkIn ? "NOT ELIGIBLE (walk-in)" : "NO"); }],
+      ["Food Time", function (s) { return s.food ? s.foodAt : ""; }],
+      ["Food Given By", function (s) { return s.food ? s.foodBy : ""; }],
       ["On Class List", function (s) { return s.inRoster ? "YES" : "NO"; }]
     ];
 
@@ -1135,13 +1353,78 @@
       $("boardInfo").textContent = "Downloaded " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ".";
     }
 
+    // ---------- Change the staff PIN ----------
+    function setPinMessage(kind, text) {
+      const box = $("pinMessage");
+
+      if (!text) {
+        box.classList.add("hidden");
+        return;
+      }
+
+      box.className = "message " + kind;
+      box.textContent = text;
+    }
+
+    function changePin() {
+      const oldPin = $("oldPin").value.trim();
+      const newPin = $("newPin").value.trim();
+      const again = $("newPin2").value.trim();
+
+      if (!oldPin || !newPin || !again) {
+        setPinMessage("error", "Fill in all three boxes.");
+        return;
+      }
+
+      if (newPin !== again) {
+        setPinMessage("error", "The new PIN and the repeated PIN do not match.");
+        return;
+      }
+
+      if (newPin.length < 4 || /\s/.test(newPin)) {
+        setPinMessage("error", "The new PIN must be at least 4 characters with no spaces.");
+        return;
+      }
+
+      $("changePinButton").disabled = true;
+      setPinMessage("info", "Saving...");
+
+      callApi("changeStaffPin", [oldPin, newPin])
+        .then(function (result) {
+          $("changePinButton").disabled = false;
+
+          if (!result || !result.success) {
+            setPinMessage("error", (result && result.message) || "Could not change the PIN.");
+            return;
+          }
+
+          pin = newPin;
+
+          try { sessionStorage.setItem("statusPin", pin); } catch (e) {}
+
+          $("oldPin").value = "";
+          $("newPin").value = "";
+          $("newPin2").value = "";
+          setPinMessage("ok", result.message);
+        })
+        .catch(function (error) {
+          $("changePinButton").disabled = false;
+          setPinMessage("error", friendlyError(error));
+        });
+    }
+
     // ---------- Events ----------
     $("sectionFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
     $("statusFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
     $("searchBox").addEventListener("input", function () { if (board) { renderTracker(); } });
 
-    $("manualId").addEventListener("keydown", function (event) {
-      if (event.key === "Enter") { manualLookup(); }
+    setupIdInputs();
+
+    $("foodFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
+
+    // Read the class lists again when the staff member comes back to this tab.
+    document.addEventListener("visibilitychange", function () {
+      if (!document.hidden && pin) { loadBoard(false); }
     });
 
     $("pin").addEventListener("keydown", function (event) {
