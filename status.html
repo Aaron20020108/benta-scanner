@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Student Event Status Tracker</title>
 
   <!-- Pinned QR scanner library -->
@@ -126,6 +126,12 @@
     .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .manual-row { display: flex; gap: 10px; }
 
+    @media (max-width: 600px) {
+      .manual-row { flex-direction: column; }
+      .manual-row button { width: 100%; }
+      .id-input { width: 100%; flex: 0 0 auto; }
+    }
+
     /* TUPM-__-______ student number entry */
     .id-input { display: flex; align-items: stretch; flex: 1; min-width: 0; }
 
@@ -214,6 +220,23 @@
     .food-line.no { background: var(--half-bg); color: var(--half); }
     .food-line.na { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
 
+    .reg-line {
+      display: inline-block;
+      padding: 8px 14px;
+      border-radius: 10px;
+      font-weight: bold;
+      margin: 10px 0 0;
+      overflow-wrap: anywhere;
+    }
+
+    .reg-line.pre { background: var(--incomplete-bg); color: var(--incomplete); }
+    .reg-line.walk { background: rgba(109, 40, 217, 0.15); color: #6d28d9; }
+    .reg-line.none { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
+
+    @media (prefers-color-scheme: dark) {
+      .reg-line.walk { color: #c4b5fd; }
+    }
+
     .foodmini { font-size: 12px; margin-top: 2px; font-weight: bold; }
     .foodmini.yes { color: var(--present); }
     .foodmini.no { color: var(--half); }
@@ -255,10 +278,17 @@
     .stat.ABSENT { border-top-color: var(--absent); } .stat.ABSENT .v { color: var(--absent); }
     .stat.FOOD { border-top-color: var(--food); } .stat.FOOD .v { color: var(--food); }
 
-    .filters { display: grid; grid-template-columns: 1fr 1fr 1fr 2fr; gap: 10px; }
-    @media (max-width: 700px) { .filters { grid-template-columns: 1fr; } }
+    .filters { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 2fr; gap: 10px; }
+    @media (max-width: 700px) {
+      .filters { grid-template-columns: 1fr 1fr; }
+      .filters > div:last-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 359px) {
+      .filters { grid-template-columns: 1fr; }
+    }
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
-    .toolbar button { min-height: 42px; font-size: 14px; padding: 10px 14px; }
+    .toolbar button { min-height: 44px; font-size: 14px; padding: 10px 14px; }
 
     .student-row {
       display: flex;
@@ -288,6 +318,47 @@
       .card, .stat { box-shadow: none; border: 1px solid #999; }
       #studentList { max-height: none; overflow: visible; }
       .student-row { break-inside: avoid; }
+    }
+  
+    /* ---- Mobile friendliness (phones, notches, touch) ---- */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      padding-top: max(16px, env(safe-area-inset-top));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: max(28px, env(safe-area-inset-bottom));
+      padding-left: max(16px, env(safe-area-inset-left));
+    }
+
+    button, select, input, label, summary {
+      touch-action: manipulation;
+    }
+
+    button, select, a {
+      -webkit-tap-highlight-color: rgba(25, 69, 121, 0.18);
+    }
+
+    img, video, canvas, svg {
+      max-width: 100%;
+    }
+
+    #reader, #reader video {
+      max-width: 100%;
+    }
+
+    /* Small phones: less padding so the content gets more width */
+    @media (max-width: 380px) {
+      body {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+      }
+
+      .card, .app {
+        padding: 14px;
+      }
     }
   </style>
 </head>
@@ -363,6 +434,7 @@
           <div id="statusBig" class="status-big"></div>
           <div id="studentName" class="student-name"></div>
           <div id="studentMeta" class="student-meta"></div>
+          <div id="regLine" class="reg-line"></div>
           <div id="reason" class="reason"></div>
           <div id="foodLine" class="food-line"></div>
           <div id="overrideNote" class="override-note hidden"></div>
@@ -399,6 +471,8 @@
           <div class="stat FOOD"><div class="k">Food provided</div><div class="v" id="cFood">0</div></div>
         </div>
 
+        <div id="regCounts" class="muted small" style="margin:-4px 0 12px;"></div>
+
         <div class="card">
           <div class="filters">
             <div>
@@ -422,6 +496,15 @@
                 <option value="provided">Food provided</option>
                 <option value="notyet">Not yet (checked in)</option>
                 <option value="walkin">Walk-in (no free food)</option>
+              </select>
+            </div>
+            <div>
+              <label for="regFilter" style="margin-top:0">Registration</label>
+              <select id="regFilter">
+                <option value="">All</option>
+                <option value="pre">Pre-registered</option>
+                <option value="walk">Walk-in</option>
+                <option value="none">Not registered</option>
               </select>
             </div>
             <div>
@@ -732,7 +815,14 @@
 
         await scanner.start(
           cameraId || { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 240, height: 240 } },
+          {
+            fps: 10,
+            // The scan frame follows the width of the phone screen.
+            qrbox: function (width, height) {
+              const side = Math.floor(Math.min(width, height) * 0.8);
+              return { width: Math.min(side, 260), height: Math.min(side, 260) };
+            }
+          },
           onScan,
           function () {}
         );
@@ -790,7 +880,8 @@
 
     // Accepts tupm-25-0637, TUPM250637 or any text containing the number.
     function normalizeId(text) {
-      const match = String(text || "").match(/TUPM\s*-?\s*(\d{2})\s*-?\s*(\d{3,6})/i);
+      // Any separators are accepted: hyphen, en dash, spaces, dots, underscores, or none.
+      const match = String(text || "").match(/TUPM[^A-Za-z0-9]*(\d{2})[^A-Za-z0-9]*(\d{3,6})/i);
       return match ? "TUPM-" + match[1] + "-" + match[2] : "";
     }
 
@@ -904,6 +995,31 @@
       return match ? match[1] : String(text || "");
     }
 
+    // Registered through the pre-registration form, as a walk-in, or not at all.
+    function regInfo(s) {
+      const type = s.regType || "Not registered";
+      const when = s.regAt ? " - registered " + s.regAt : "";
+      const ref = s.regRef ? " (" + s.regRef + ")" : "";
+
+      if (type === "Not registered") {
+        return {
+          cls: "none",
+          text: "NOT REGISTERED - no pre-registration or walk-in record found",
+          short: "Not registered"
+        };
+      }
+
+      if (type.indexOf("Walk-in") !== -1 && type.indexOf("Pre-registered") === -1) {
+        return { cls: "walk", text: "WALK-IN REGISTRATION" + ref + when, short: "Walk-in" };
+      }
+
+      return {
+        cls: "pre",
+        text: (type.indexOf("Walk-in") !== -1 ? "PRE-REGISTERED + WALK-IN" : "ALREADY PRE-REGISTERED") + ref + when,
+        short: type === "Pre-registered" ? "Pre-registered" : type
+      };
+    }
+
     function foodInfo(s) {
       if (s.food) {
         return {
@@ -965,6 +1081,10 @@
       $("foodLine").className = "food-line " + food.cls;
       $("foodLine").textContent = food.text;
 
+      const reg = regInfo(s);
+      $("regLine").className = "reg-line " + reg.cls;
+      $("regLine").textContent = reg.text;
+
       const note = $("overrideNote");
 
       if (s.override) {
@@ -984,6 +1104,8 @@
         ["Check-in", s.arr ? shortTime(s.arr) : "None"],
         ["Check-out", s.out ? shortTime(s.outAt) : "None"],
         ["Free food", s.food ? "Provided " + shortTime(s.foodAt) : (s.walkIn ? "Not eligible" : "Not yet")],
+        ["Registration", regInfo(s).short],
+        ["Reference no.", s.regRef || "None"],
         ["On a break now", s.brk ? (s.brk === "TOILET" ? "Toilet" : "Lunch") + " since " + shortTime(s.brkSince) : "No"],
         ["Toilet breaks", String(s.tb)],
         ["Lunch breaks", String(s.lb)],
@@ -1168,6 +1290,12 @@
       const query = $("searchBox").value.trim().toLowerCase();
 
       return board.students.filter(function (s) {
+        const regFilter = $("regFilter").value;
+        const regOk = !regFilter ||
+          (regFilter === "pre" && String(s.regType).indexOf("Pre-registered") !== -1) ||
+          (regFilter === "walk" && String(s.regType).indexOf("Walk-in") !== -1) ||
+          (regFilter === "none" && s.regType === "Not registered");
+
         const foodOk = !foodFilter ||
           (foodFilter === "provided" && s.food) ||
           (foodFilter === "notyet" && s.arr && !s.food && !s.walkIn) ||
@@ -1176,6 +1304,7 @@
         return (!section || s.section === section) &&
                (!status || s.status === status) &&
                foodOk &&
+               regOk &&
                (!query || (s.name + " " + s.id).toLowerCase().indexOf(query) !== -1);
       }).sort(function (a, b) {
         return a.section.localeCompare(b.section, undefined, { numeric: true }) ||
@@ -1205,6 +1334,15 @@
       $("cAbsent").textContent = count("ABSENT");
       $("cFood").textContent = base.filter(function (s) { return s.food; }).length;
 
+      const regCount = function (test) {
+        return base.filter(function (s) { return test(String(s.regType)); }).length;
+      };
+
+      $("regCounts").textContent = "Registration: " +
+        regCount(function (t) { return t.indexOf("Pre-registered") !== -1; }) + " pre-registered, " +
+        regCount(function (t) { return t.indexOf("Walk-in") !== -1; }) + " walk-in, " +
+        regCount(function (t) { return t === "Not registered"; }) + " not registered";
+
       $("printInfo").textContent = "- " + (section || "All sections") + " - " +
         String(board.generatedAt || "").slice(0, 16);
 
@@ -1233,7 +1371,8 @@
 
         const meta = document.createElement("div");
         meta.className = "meta";
-        meta.textContent = [s.id, s.section, s.inRoster ? "" : "Not on a class list"].filter(Boolean).join("  |  ");
+        meta.textContent = [s.id, s.section, regInfo(s).short, s.inRoster ? "" : "Not on a class list"]
+          .filter(Boolean).join("  |  ");
 
         left.appendChild(who);
         left.appendChild(meta);
@@ -1287,6 +1426,9 @@
       ["Student ID", function (s) { return s.id; }],
       ["Name of Student", function (s) { return s.name; }],
       ["Course", function (s) { return s.course; }],
+      ["Registration Type", function (s) { return s.regType; }],
+      ["Registration Reference", function (s) { return s.regRef; }],
+      ["Registered At", function (s) { return s.regAt; }],
       ["Final Status", function (s) { return LABELS[s.status]; }],
       ["Automatic Status", function (s) { return LABELS[s.auto]; }],
       ["Manually Changed", function (s) { return s.override ? "YES" : "NO"; }],
@@ -1421,6 +1563,7 @@
     setupIdInputs();
 
     $("foodFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
+    $("regFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
 
     // Read the class lists again when the staff member comes back to this tab.
     document.addEventListener("visibilitychange", function () {
