@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>QR Attendance Scanner</title>
 
   <!-- Pinned QR scanner library -->
@@ -165,6 +165,11 @@
       padding: 8px 4px;
       font-size: 14px;
       line-height: 1.25;
+      overflow-wrap: anywhere;
+    }
+
+    @media (max-width: 360px) {
+      .action-buttons button { font-size: 12.5px; }
     }
 
     .action-buttons .selected-checkout {
@@ -306,6 +311,41 @@
       border-radius: 0 9px 9px 0;
     }
 
+    /* TUPM-__-______ student number entry (break tasks) */
+    .id-input {
+      display: flex;
+      align-items: stretch;
+      width: 100%;
+      margin-top: 7px;
+    }
+
+    .id-input .fixed {
+      display: flex;
+      align-items: center;
+      padding: 0 10px;
+      background: #e7edf5;
+      border: 1px solid #cbd3df;
+      font-weight: bold;
+      color: #17365f;
+      flex-shrink: 0;
+    }
+
+    .id-input .fixed.first { border-right: 0; border-radius: 9px 0 0 9px; }
+    .id-input .fixed.dash { border-left: 0; border-right: 0; padding: 0 6px; }
+
+    .id-input input {
+      width: auto;
+      min-width: 0;
+      margin: 0;
+      border-radius: 0;
+      text-align: center;
+      letter-spacing: 0.12em;
+      font-weight: bold;
+    }
+
+    .id-input input.year { flex: 0 0 76px; }
+    .id-input input.number { flex: 1; border-radius: 0 9px 9px 0; }
+
     #result {
       display: none;
       white-space: pre-line;
@@ -361,12 +401,53 @@
       }
 
       .reference-input input {
-        font-size: 14px;
+        font-size: 16px;
         padding: 8px 3px;
       }
 
       .reference-separator {
         padding: 0 3px;
+      }
+    }
+  
+    /* ---- Mobile friendliness (phones, notches, touch) ---- */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      padding-top: max(16px, env(safe-area-inset-top));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: max(28px, env(safe-area-inset-bottom));
+      padding-left: max(16px, env(safe-area-inset-left));
+    }
+
+    button, select, input, label, summary {
+      touch-action: manipulation;
+    }
+
+    button, select, a {
+      -webkit-tap-highlight-color: rgba(25, 69, 121, 0.18);
+    }
+
+    img, video, canvas, svg {
+      max-width: 100%;
+    }
+
+    #reader, #reader video {
+      max-width: 100%;
+    }
+
+    /* Small phones: less padding so the content gets more width */
+    @media (max-width: 380px) {
+      body {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+      }
+
+      .card, .app {
+        padding: 14px;
       }
     }
   </style>
@@ -485,7 +566,7 @@
         </button>
       </div>
 
-      <label style="display:flex;align-items:center;gap:10px;margin:0 0 6px;font-weight:normal;">
+      <label style="display:flex;align-items:center;gap:10px;margin:0 0 6px;font-weight:normal;min-height:44px;">
         <input
           id="soundToggle"
           type="checkbox"
@@ -597,15 +678,16 @@
 
         <!-- Shown only for Toilet / Lunch break: type the TUP ID student number -->
         <div id="breakManual" class="hidden">
-          <label for="studentIdEntry">Or type the Student ID (TUP ID)</label>
+          <label for="idYear">Or type the Student ID (TUP ID)</label>
 
-          <input
-            id="studentIdEntry"
-            type="text"
-            placeholder="TUPM-00-00000"
-            autocapitalize="characters"
-            autocomplete="off"
-          >
+          <div class="id-input">
+            <span class="fixed first">TUPM-</span>
+            <input id="idYear" class="year" type="text" inputmode="numeric" maxlength="2" placeholder="__" aria-label="Year digits" autocomplete="off">
+            <span class="fixed dash">-</span>
+            <input id="idNumber" class="number" type="text" inputmode="numeric" maxlength="6" placeholder="______" aria-label="Student number digits" autocomplete="off">
+          </div>
+
+          <p class="small">Format: TUPM-__-______ (2 digits, then 3 to 6 digits). You can also paste the whole number.</p>
 
           <button
             id="studentIdButton"
@@ -1168,7 +1250,11 @@
           cameraConfig,
           {
             fps: 10,
-            qrbox: { width: 240, height: 240 }
+            // The scan frame follows the width of the phone screen.
+            qrbox: function (width, height) {
+              const side = Math.floor(Math.min(width, height) * 0.8);
+              return { width: Math.min(side, 260), height: Math.min(side, 260) };
+            }
           },
           onScanSuccess,
           function() {}
@@ -1327,25 +1413,99 @@
       submitCheckIn(reference);
     }
 
+    // Standard TUPM-00-0000 form from typed or scanned text (any separators).
+    function normalizeTupmId(text) {
+      const match = String(text || "").match(/TUPM[^A-Za-z0-9]*(\d{2})[^A-Za-z0-9]*(\d{3,6})/i);
+      return match ? "TUPM-" + match[1] + "-" + match[2] : "";
+    }
+
     // Break tasks: type the Student ID printed on the TUP ID.
     function studentIdCheckIn() {
       initAudio();
-
-      const value = document.getElementById("studentIdEntry").value
-        .replace(/\s+/g, "").toUpperCase();
 
       if (!staffPinValidated || requestPending) {
         return;
       }
 
-      if (!value) {
-        showResult("error", "Student ID required", "Type the Student ID, for example TUPM-00-00000.");
+      const yearBox = document.getElementById("idYear");
+      const numberBox = document.getElementById("idNumber");
+      const year = yearBox.value.replace(/\D/g, "");
+      const number = numberBox.value.replace(/\D/g, "");
+
+      if (year.length !== 2 || number.length < 3) {
+        showResult(
+          "error",
+          "Student ID required",
+          "Fill in TUPM-__-______ (2 digits, then 3 to 6 digits)."
+        );
         return;
       }
 
       beep("scan");
-      submitCheckIn(value);
-      document.getElementById("studentIdEntry").value = "";
+      submitCheckIn("TUPM-" + year + "-" + number);
+
+      yearBox.value = "";
+      numberBox.value = "";
+      yearBox.focus();
+    }
+
+    // Digits only, jumps to the next box, and a whole pasted number is split.
+    function setupIdInputs() {
+      const year = document.getElementById("idYear");
+      const number = document.getElementById("idNumber");
+
+      function fillFrom(text) {
+        const id = normalizeTupmId(text);
+
+        if (!id) {
+          return false;
+        }
+
+        const parts = id.split("-");
+        year.value = parts[1];
+        number.value = parts[2];
+        return true;
+      }
+
+      year.addEventListener("input", function () {
+        year.value = year.value.replace(/\D/g, "");
+
+        if (year.value.length >= 2) {
+          number.focus();
+        }
+      });
+
+      number.addEventListener("input", function () {
+        number.value = number.value.replace(/\D/g, "");
+      });
+
+      [year, number].forEach(function (box) {
+        box.addEventListener("paste", function (event) {
+          const clip = event.clipboardData || window.clipboardData;
+          const text = clip ? clip.getData("text") : "";
+
+          if (fillFrom(text)) {
+            event.preventDefault();
+            number.focus();
+          }
+        });
+
+        box.addEventListener("focus", function () {
+          if (box.select) { box.select(); }
+        });
+
+        box.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            studentIdCheckIn();
+          }
+        });
+      });
+
+      number.addEventListener("keydown", function (event) {
+        if (event.key === "Backspace" && number.value === "") {
+          year.focus();
+        }
+      });
     }
 
     function submitCheckIn(reference) {
@@ -1498,6 +1658,8 @@
         "Enter your name and PIN to continue."
       );
     }
+
+    setupIdInputs();
 
     // Press Enter in either manual field to submit.
     ["referenceDate", "referenceNumber"].forEach(function(id) {
