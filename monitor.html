@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Event Live Monitor</title>
 
   <style>
@@ -205,7 +205,7 @@
     /* ---- Stat cards ---- */
     .stats {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
       gap: 12px;
       margin-bottom: 14px;
     }
@@ -273,6 +273,16 @@
 
     th:first-child, td:first-child { text-align: left; }
 
+    /* Keep the section name visible while the numbers scroll sideways on a phone */
+    .table-wrap th:first-child,
+    .table-wrap td:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      background: var(--card);
+      box-shadow: 1px 0 0 var(--line);
+    }
+
     thead th {
       font-size: 12px;
       color: var(--muted);
@@ -316,7 +326,7 @@
     }
 
     .downloads .label { width: 100%; }
-    .downloads button { min-height: 42px; font-size: 14px; padding: 10px 14px; }
+    .downloads button { min-height: 44px; font-size: 14px; padding: 10px 14px; }
 
     .tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
     @media (max-width: 800px) { .tabs { grid-template-columns: repeat(2, 1fr); } }
@@ -355,6 +365,47 @@
 
     .empty { padding: 24px 4px; color: var(--muted); text-align: center; }
     .footnote { font-size: 12px; color: var(--muted); margin-top: 12px; line-height: 1.5; }
+  
+    /* ---- Mobile friendliness (phones, notches, touch) ---- */
+    html {
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
+    body {
+      padding-top: max(16px, env(safe-area-inset-top));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: max(28px, env(safe-area-inset-bottom));
+      padding-left: max(16px, env(safe-area-inset-left));
+    }
+
+    button, select, input, label, summary {
+      touch-action: manipulation;
+    }
+
+    button, select, a {
+      -webkit-tap-highlight-color: rgba(25, 69, 121, 0.18);
+    }
+
+    img, video, canvas, svg {
+      max-width: 100%;
+    }
+
+    #reader, #reader video {
+      max-width: 100%;
+    }
+
+    /* Small phones: less padding so the content gets more width */
+    @media (max-width: 380px) {
+      body {
+        padding-left: max(10px, env(safe-area-inset-left));
+        padding-right: max(10px, env(safe-area-inset-right));
+      }
+
+      .card, .app {
+        padding: 14px;
+      }
+    }
   </style>
 </head>
 
