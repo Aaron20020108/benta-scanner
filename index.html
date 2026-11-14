@@ -154,7 +154,7 @@
 
     .action-buttons {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(2, 1fr);
       gap: 8px;
       margin: 8px 0 12px;
     }
@@ -168,9 +168,7 @@
       overflow-wrap: anywhere;
     }
 
-    @media (max-width: 360px) {
-      .action-buttons button { font-size: 12.5px; }
-    }
+
 
     .action-buttons .selected-checkout {
       background: #6d28d9;
@@ -182,10 +180,7 @@
       color: #fff;
     }
 
-    .action-buttons .selected-lunch {
-      background: #a16207;
-      color: #fff;
-    }
+
 
     .action-buttons .selected-checkin {
       background: #194579;
@@ -230,10 +225,7 @@
       color: #155e75;
     }
 
-    .action-banner.lunch {
-      background: #fef3c7;
-      color: #854d0e;
-    }
+
 
     .section {
       border-top: 1px solid #e4e8ef;
@@ -458,8 +450,9 @@
     <h1>QR Attendance Scanner</h1>
 
     <p>
-      Enter your name and staff PIN first. Then choose camera scanning,
-      photo scanning, or manual reference entry.
+      Enter your name and staff PIN first. Then scan the registration QR code or
+      the student's TUP ID QR code, take a photo of it, or type the Student ID
+      or reference number.
     </p>
 
     <!-- STEP 1: STAFF NAME + PIN -->
@@ -531,15 +524,6 @@
         >
           Toilet Break<br>(Out / In)
         </button>
-
-        <button
-          id="actionLunch"
-          class="unselected"
-          type="button"
-          onclick="setAction('lunch')"
-        >
-          Lunch Break<br>(Out / In)
-        </button>
       </div>
 
       <div id="actionBanner" class="action-banner checkin">
@@ -578,11 +562,12 @@
 
       <!-- CAMERA SCAN -->
       <section id="cameraSection">
-        <p><strong>Camera check-in</strong></p>
+        <p><strong>Camera scan</strong></p>
 
         <p class="small">
-          Allow camera access when prompted. If live scanning fails,
-          take a photo of the QR code below or switch to Manual Entry.
+          Scan the registration QR code from the email, or the QR code on the
+          student's TUP ID. Allow camera access when prompted. If live scanning
+          fails, take a photo of the QR code below or use Manual Entry.
         </p>
 
         <label for="cameraSelect">Choose camera</label>
@@ -630,9 +615,28 @@
 
       <!-- MANUAL ENTRY -->
       <section id="manualSection" class="section hidden">
-        <p><strong>Manual check-in</strong></p>
+        <p><strong>Manual entry</strong></p>
 
-        <label>Registration Reference Number</label>
+        <label for="idYear">Student ID (TUP ID)</label>
+
+        <div class="id-input">
+          <span class="fixed first">TUPM-</span>
+          <input id="idYear" class="year" type="text" inputmode="numeric" maxlength="2" placeholder="__" aria-label="Year digits" autocomplete="off">
+          <span class="fixed dash">-</span>
+          <input id="idNumber" class="number" type="text" inputmode="numeric" maxlength="6" placeholder="______" aria-label="Student number digits" autocomplete="off">
+        </div>
+
+        <p class="small">Format: TUPM-__-______ (2 digits, then 3 to 6 digits). You can also paste the whole number.</p>
+
+        <button
+          id="studentIdButton"
+          type="button"
+          onclick="studentIdCheckIn()"
+        >
+          Check in by Student ID
+        </button>
+
+        <label style="margin-top:22px;">Or the registration reference number</label>
 
         <div class="reference-input">
           <select id="referencePrefix" class="prefix-select" aria-label="Registration type">
@@ -673,30 +677,8 @@
           type="button"
           onclick="manualCheckIn()"
         >
-          Check In Participant
+          Check in by reference number
         </button>
-
-        <!-- Shown only for Toilet / Lunch break: type the TUP ID student number -->
-        <div id="breakManual" class="hidden">
-          <label for="idYear">Or type the Student ID (TUP ID)</label>
-
-          <div class="id-input">
-            <span class="fixed first">TUPM-</span>
-            <input id="idYear" class="year" type="text" inputmode="numeric" maxlength="2" placeholder="__" aria-label="Year digits" autocomplete="off">
-            <span class="fixed dash">-</span>
-            <input id="idNumber" class="number" type="text" inputmode="numeric" maxlength="6" placeholder="______" aria-label="Student number digits" autocomplete="off">
-          </div>
-
-          <p class="small">Format: TUPM-__-______ (2 digits, then 3 to 6 digits). You can also paste the whole number.</p>
-
-          <button
-            id="studentIdButton"
-            type="button"
-            onclick="studentIdCheckIn()"
-          >
-            Tag break by Student ID
-          </button>
-        </div>
       </section>
 
       <button
@@ -734,16 +716,18 @@
     let requestPending = false;
     let staffPinValidated = false;
     let activeMode = "camera";
-    let activeAction = "checkin";   // "checkin", "food", "checkout", "toilet" or "lunch"
+    let activeAction = "checkin";   // "checkin", "food", "checkout" or "toilet"
 
-    // The tasks the scanner can do.
+    // The tasks the scanner can do. Every task accepts the registration QR code
+    // OR the student's TUP ID QR code (or a typed Student ID).
     const ACTIONS = {
       checkin: {
         button: "actionCheckin",
         selected: "selected-checkin",
         banner: "Current task: ATTENDANCE CHECK-IN",
         title: "Attendance check-in mode",
-        text: "Scan the registration QR code to record attendance.",
+        text: "Scan the registration QR code or the TUP ID QR code. The student must have a pre-registration or a walk-in registration.",
+        verb: "Check in",
         fn: "checkInParticipant"
       },
       food: {
@@ -751,7 +735,8 @@
         selected: "selected-food",
         banner: "Current task: FOOD DISTRIBUTION",
         title: "Food distribution mode",
-        text: "Scan the QR code of a participant who already checked in.",
+        text: "Scan the registration QR code or the TUP ID QR code. The student must already be checked in (pre-registered or walk-in).",
+        verb: "Give food",
         fn: "distributeFood"
       },
       checkout: {
@@ -759,7 +744,8 @@
         selected: "selected-checkout",
         banner: "Current task: CHECK-OUT (LEAVING)",
         title: "Check-out mode",
-        text: "Scan the QR code of a participant who is leaving the venue.",
+        text: "Scan the registration QR code or the TUP ID QR code. The student must have answered the post-event evaluation first.",
+        verb: "Check out",
         fn: "checkOutParticipant"
       },
       toilet: {
@@ -767,22 +753,14 @@
         selected: "selected-toilet",
         banner: "Current task: TOILET BREAK (OUT / IN)",
         title: "Toilet break mode",
-        text: "Scan the TUP ID QR code of a checked-in participant. First scan = OUT, scan again when they return = IN.",
+        text: "Scan the TUP ID QR code (or the registration QR code) of a checked-in student. First scan = OUT, scan again when they return = IN.",
+        verb: "Toilet break out / in",
         fn: "tagBreak",
         breakType: "TOILET"
-      },
-      lunch: {
-        button: "actionLunch",
-        selected: "selected-lunch",
-        banner: "Current task: LUNCH BREAK (OUT / IN)",
-        title: "Lunch break mode",
-        text: "Scan the TUP ID QR code of a checked-in participant. First scan = OUT, scan again when they return = IN.",
-        fn: "tagBreak",
-        breakType: "LUNCH"
       }
     };
 
-    // Switch between check-in, food, check-out and the two break tasks.
+    // Switch between the four tasks.
     function setAction(action) {
       if (requestPending) {
         return;
@@ -799,9 +777,10 @@
       banner.className = "action-banner " + activeAction;
       banner.textContent = ACTIONS[activeAction].banner;
 
-      // Student ID typing box is only for the break tasks.
-      document.getElementById("breakManual")
-        .classList.toggle("hidden", !ACTIONS[activeAction].breakType);
+      // The manual entry buttons follow the task.
+      const verb = ACTIONS[activeAction].verb;
+      document.getElementById("studentIdButton").textContent = verb + " by Student ID";
+      document.getElementById("checkInButton").textContent = verb + " by reference number";
 
       document.getElementById("nextButton").classList.add("hidden");
 
@@ -932,7 +911,7 @@
           ? ["Checked out: " + data.checkoutTime]
           : [],
         data.breakType
-          ? ["Break: " + (data.breakType === "TOILET" ? "Toilet" : "Lunch") +
+          ? ["Break: Toilet" +
              (data.breakSince ? " since " + String(data.breakSince).slice(11) : "")]
           : [],
         typeof data.minutesAway === "number"
@@ -962,11 +941,11 @@
       }
 
       if (data.status === "BREAK_OUT") {
-        return (data.breakType === "TOILET" ? "TOILET" : "LUNCH") + " BREAK — OUT";
+        return "TOILET BREAK — OUT";
       }
 
       if (data.status === "BREAK_IN") {
-        return "BACK FROM " + (data.breakType === "TOILET" ? "TOILET" : "LUNCH") + " BREAK — IN";
+        return "BACK FROM TOILET BREAK — IN";
       }
 
       return "PRESENT — Check-in successful!";
@@ -977,8 +956,7 @@
       return status === "DUPLICATE" ||
              status === "FOOD_ALREADY" ||
              status === "CHECKOUT_ALREADY" ||
-             status === "TOO_SOON" ||
-             status === "ON_OTHER_BREAK";
+             status === "TOO_SOON";
     }
 
     function duplicateTitle(data) {
@@ -994,10 +972,6 @@
         return "JUST SCANNED — wait a few seconds";
       }
 
-      if (data.status === "ON_OTHER_BREAK") {
-        return "ON ANOTHER BREAK — return them first";
-      }
-
       return "ALREADY CHECKED IN";
     }
 
@@ -1005,8 +979,8 @@
     function errorTitle(data) {
       const status = data && data.status;
 
-      if (status === "NO_FOOD_WALKIN") {
-        return "WALK-IN — NO FREE FOOD";
+      if (status === "NOT_REGISTERED") {
+        return "NOT REGISTERED — register first";
       }
 
       if (status === "NOT_CHECKED_IN") {
@@ -1014,9 +988,21 @@
           return "NEVER CHECKED IN";
         }
 
+        if (activeAction === "food") {
+          return "NOT CHECKED IN — check in before food";
+        }
+
         return ACTIONS[activeAction].breakType
           ? "NOT CHECKED IN — no break allowed"
           : "NOT CHECKED IN YET";
+      }
+
+      if (status === "EVALUATION_REQUIRED") {
+        return "POST-EVENT EVALUATION NOT DONE";
+      }
+
+      if (status === "EVALUATION_UNAVAILABLE") {
+        return "CANNOT CHECK THE EVALUATION";
       }
 
       if (status === "ON_BREAK") {
@@ -1523,6 +1509,7 @@
 
       document.getElementById("cameraButton").disabled = true;
       document.getElementById("checkInButton").disabled = true;
+      document.getElementById("studentIdButton").disabled = true;
 
       document.getElementById("nextButton")
         .classList.add("hidden");
@@ -1539,6 +1526,7 @@
 
           document.getElementById("cameraButton").disabled = false;
           document.getElementById("checkInButton").disabled = false;
+          document.getElementById("studentIdButton").disabled = false;
 
           if (data && data.success) {
             showResult(
@@ -1555,7 +1543,7 @@
             showResult(
               "duplicate",
               duplicateTitle(data),
-              (data.status === "TOO_SOON" || data.status === "ON_OTHER_BREAK"
+              (data.status === "TOO_SOON"
                 ? data.message + "\n"
                 : "") + participantDetails(data)
             );
@@ -1582,6 +1570,7 @@
 
           document.getElementById("cameraButton").disabled = false;
           document.getElementById("checkInButton").disabled = false;
+          document.getElementById("studentIdButton").disabled = false;
 
           beep("error");
           showResult(
