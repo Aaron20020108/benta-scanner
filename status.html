@@ -259,8 +259,11 @@
     .breaks div { padding: 3px 0; border-bottom: 1px solid var(--line); }
 
     /* ---- Tracker ---- */
-    .stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; margin-bottom: 14px; }
-    @media (max-width: 700px) { .stats { grid-template-columns: repeat(2, 1fr); } }
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 10px; margin-bottom: 14px; }
+    @media (max-width: 700px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .stats .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    }
 
     .stat {
       background: var(--card);
@@ -277,8 +280,9 @@
     .stat.INCOMPLETE { border-top-color: var(--incomplete); } .stat.INCOMPLETE .v { color: var(--incomplete); }
     .stat.ABSENT { border-top-color: var(--absent); } .stat.ABSENT .v { color: var(--absent); }
     .stat.FOOD { border-top-color: var(--food); } .stat.FOOD .v { color: var(--food); }
+    .stat.EVAL { border-top-color: var(--incomplete); } .stat.EVAL .v { color: var(--incomplete); }
 
-    .filters { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr 2fr; gap: 10px; }
+    .filters { display: grid; grid-template-columns: repeat(5, 1fr) 2fr; gap: 10px; }
     @media (max-width: 700px) {
       .filters { grid-template-columns: 1fr 1fr; }
       .filters > div:last-child { grid-column: 1 / -1; }
@@ -393,6 +397,8 @@
         <button id="tabSettings" type="button" onclick="showPanel('settings')">Settings</button>
       </div>
 
+      <div id="evalBanner" class="message error hidden" role="alert" style="margin-bottom:14px;"></div>
+
       <!-- LOOKUP -->
       <section id="lookupPanel">
         <div class="card">
@@ -437,6 +443,7 @@
           <div id="regLine" class="reg-line"></div>
           <div id="reason" class="reason"></div>
           <div id="foodLine" class="food-line"></div>
+          <div id="evalLine" class="food-line"></div>
           <div id="overrideNote" class="override-note hidden"></div>
 
           <div class="details" id="details"></div>
@@ -454,6 +461,14 @@
             Remove manual change (use automatic status)
           </button>
 
+          <button id="evalButton" class="secondary hidden" type="button" style="width:100%;margin-top:10px;" onclick="confirmEvaluation()">
+            Staff confirms: post-event evaluation is done
+          </button>
+
+          <button id="evalClearButton" class="secondary hidden" type="button" style="width:100%;margin-top:10px;" onclick="clearEvaluation()">
+            Remove the staff confirmation of the evaluation
+          </button>
+
           <div id="breaks" class="breaks"></div>
         </div>
       </section>
@@ -469,6 +484,7 @@
           <div class="stat INCOMPLETE"><div class="k">No check-out</div><div class="v" id="cIncomplete">0</div></div>
           <div class="stat ABSENT"><div class="k">Absent</div><div class="v" id="cAbsent">0</div></div>
           <div class="stat FOOD"><div class="k">Food provided</div><div class="v" id="cFood">0</div></div>
+          <div class="stat EVAL"><div class="k">Evaluated</div><div class="v" id="cEval">0</div></div>
         </div>
 
         <div id="regCounts" class="muted small" style="margin:-4px 0 12px;"></div>
@@ -495,7 +511,6 @@
                 <option value="">All</option>
                 <option value="provided">Food provided</option>
                 <option value="notyet">Not yet (checked in)</option>
-                <option value="walkin">Walk-in (no free food)</option>
               </select>
             </div>
             <div>
@@ -505,6 +520,14 @@
                 <option value="pre">Pre-registered</option>
                 <option value="walk">Walk-in</option>
                 <option value="none">Not registered</option>
+              </select>
+            </div>
+            <div>
+              <label for="evalFilter" style="margin-top:0">Post-evaluation</label>
+              <select id="evalFilter">
+                <option value="">All</option>
+                <option value="done">Done</option>
+                <option value="notyet">Not yet</option>
               </select>
             </div>
             <div>
@@ -528,9 +551,10 @@
 
         <p class="muted small">
           <strong>How the status is decided:</strong> Present = checked in and checked out. Half Day = went out on a
-          toilet or lunch break and never came back in or checked out. Absent = never checked in. No check-out =
-          checked in but no check-out was scanned. Staff can change any status manually, and every change is saved
-          in the Status Log sheet.
+          toilet break and never came back in or checked out. Absent = never checked in. No check-out =
+          checked in but no check-out was scanned. The post-evaluation shows whether the student answered the
+          post-event evaluation (a student must answer it before they can check out). Staff can change any status
+          manually, and every change is saved in the Status Log sheet.
         </p>
       </section>
 
@@ -1020,6 +1044,21 @@
       };
     }
 
+    // Post-event evaluation: found in the evaluation sheet, or confirmed by staff.
+    function evalInfo(s) {
+      if (s.evalDone) {
+        return {
+          cls: "yes",
+          text: s.evalSource === "manual"
+            ? "POST-EVALUATION DONE (confirmed by " + (s.evalBy || "staff") + ")"
+            : "POST-EVALUATION DONE (found in the evaluation sheet)",
+          short: "Evaluated"
+        };
+      }
+
+      return { cls: "no", text: "POST-EVALUATION NOT DONE YET", short: "Not evaluated" };
+    }
+
     function foodInfo(s) {
       if (s.food) {
         return {
@@ -1028,10 +1067,6 @@
             (s.foodBy ? " (by " + s.foodBy + ")" : ""),
           short: "Food given" + (s.foodAt ? " " + shortTime(s.foodAt) : "")
         };
-      }
-
-      if (s.walkIn) {
-        return { cls: "na", text: "NO FREE FOOD - walk-in registration", short: "No free food (walk-in)" };
       }
 
       if (!s.arr) {
@@ -1052,7 +1087,7 @@
       }
 
       if (s.auto === "HALF_DAY") {
-        return "Went OUT on a " + (s.brk === "TOILET" ? "toilet" : "lunch") + " break at " +
+        return "Went OUT on a toilet break at " +
           shortTime(s.brkSince) + " and never came back IN, and has not checked out.";
       }
 
@@ -1085,6 +1120,12 @@
       $("regLine").className = "reg-line " + reg.cls;
       $("regLine").textContent = reg.text;
 
+      const evaluation = evalInfo(s);
+      $("evalLine").className = "food-line " + evaluation.cls;
+      $("evalLine").textContent = evaluation.text;
+      $("evalButton").classList.toggle("hidden", !!s.evalDone);
+      $("evalClearButton").classList.toggle("hidden", s.evalSource !== "manual");
+
       const note = $("overrideNote");
 
       if (s.override) {
@@ -1103,12 +1144,12 @@
       [
         ["Check-in", s.arr ? shortTime(s.arr) : "None"],
         ["Check-out", s.out ? shortTime(s.outAt) : "None"],
-        ["Free food", s.food ? "Provided " + shortTime(s.foodAt) : (s.walkIn ? "Not eligible" : "Not yet")],
+        ["Free food", s.food ? "Provided " + shortTime(s.foodAt) : "Not yet"],
+        ["Post-evaluation", s.evalDone ? (s.evalSource === "manual" ? "Done (staff)" : "Done") : "Not yet"],
         ["Registration", regInfo(s).short],
         ["Reference no.", s.regRef || "None"],
-        ["On a break now", s.brk ? (s.brk === "TOILET" ? "Toilet" : "Lunch") + " since " + shortTime(s.brkSince) : "No"],
+        ["On a break now", s.brk ? "Toilet since " + shortTime(s.brkSince) : "No"],
         ["Toilet breaks", String(s.tb)],
-        ["Lunch breaks", String(s.lb)],
         ["Automatic status", LABELS[s.auto]]
       ].forEach(function (pair) {
         const box = document.createElement("div");
@@ -1180,6 +1221,70 @@
         .catch(function (error) {
           busy = false;
           beep("error");
+          setMessage("error", friendlyError(error));
+        });
+    }
+
+    function confirmEvaluation() {
+      if (!current || busy) {
+        return;
+      }
+
+      if (!window.confirm("Confirm that " + (current.name || current.id) + " answered the post-event evaluation?")) {
+        return;
+      }
+
+      busy = true;
+
+      callApi("setEvaluationConfirmed", [pin, current.id, staff, $("noteInput").value.trim()])
+        .then(function (result) {
+          busy = false;
+
+          if (!result || !result.success) {
+            beep("error");
+            setMessage("error", (result && result.message) || "Could not save.");
+            return;
+          }
+
+          beep("scan");
+          setMessage("ok", result.message);
+          showStudent(result.student, []);
+          loadBoard(false);
+        })
+        .catch(function (error) {
+          busy = false;
+          beep("error");
+          setMessage("error", friendlyError(error));
+        });
+    }
+
+    function clearEvaluation() {
+      if (!current || busy || current.evalSource !== "manual") {
+        return;
+      }
+
+      if (!window.confirm("Remove the staff confirmation for " + (current.name || current.id) + "?")) {
+        return;
+      }
+
+      busy = true;
+
+      callApi("clearEvaluationConfirmed", [pin, current.id, staff])
+        .then(function (result) {
+          busy = false;
+
+          if (!result || !result.success) {
+            beep("error");
+            setMessage("error", (result && result.message) || "Could not save.");
+            return;
+          }
+
+          setMessage("ok", result.message);
+          showStudent(result.student, []);
+          loadBoard(false);
+        })
+        .catch(function (error) {
+          busy = false;
           setMessage("error", friendlyError(error));
         });
     }
@@ -1276,6 +1381,16 @@
 
       $("tabsInfo").textContent = info;
 
+      const banner = $("evalBanner");
+
+      if (result.evalError) {
+        banner.textContent = "The post-event evaluation sheet could not be read: " + result.evalError +
+          ". Check-out is blocked until it can be read. You can confirm a student's evaluation by hand below.";
+        banner.classList.remove("hidden");
+      } else {
+        banner.classList.add("hidden");
+      }
+
       renderTracker();
     }
 
@@ -1298,13 +1413,18 @@
 
         const foodOk = !foodFilter ||
           (foodFilter === "provided" && s.food) ||
-          (foodFilter === "notyet" && s.arr && !s.food && !s.walkIn) ||
-          (foodFilter === "walkin" && s.walkIn);
+          (foodFilter === "notyet" && s.arr && !s.food);
+
+        const evalFilter = $("evalFilter").value;
+        const evalOk = !evalFilter ||
+          (evalFilter === "done" && s.evalDone) ||
+          (evalFilter === "notyet" && !s.evalDone);
 
         return (!section || s.section === section) &&
                (!status || s.status === status) &&
                foodOk &&
                regOk &&
+               evalOk &&
                (!query || (s.name + " " + s.id).toLowerCase().indexOf(query) !== -1);
       }).sort(function (a, b) {
         return a.section.localeCompare(b.section, undefined, { numeric: true }) ||
@@ -1333,6 +1453,7 @@
       $("cIncomplete").textContent = count("INCOMPLETE");
       $("cAbsent").textContent = count("ABSENT");
       $("cFood").textContent = base.filter(function (s) { return s.food; }).length;
+      $("cEval").textContent = base.filter(function (s) { return s.evalDone; }).length;
 
       const regCount = function (test) {
         return base.filter(function (s) { return test(String(s.regType)); }).length;
@@ -1405,6 +1526,12 @@
         foodMini.textContent = food.short;
         right.appendChild(foodMini);
 
+        const evaluation = evalInfo(s);
+        const evalMini = document.createElement("div");
+        evalMini.className = "foodmini " + evaluation.cls;
+        evalMini.textContent = evaluation.short;
+        right.appendChild(evalMini);
+
         row.appendChild(left);
         row.appendChild(right);
         list.appendChild(row);
@@ -1438,10 +1565,11 @@
       ["Check-out Time", function (s) { return s.out ? s.outAt : ""; }],
       ["On Break Now", function (s) { return s.brk || "NO"; }],
       ["Toilet Breaks", function (s) { return s.tb; }],
-      ["Lunch Breaks", function (s) { return s.lb; }],
-      ["Food Provided", function (s) { return s.food ? "YES" : (s.walkIn ? "NOT ELIGIBLE (walk-in)" : "NO"); }],
+      ["Food Provided", function (s) { return s.food ? "YES" : "NO"; }],
       ["Food Time", function (s) { return s.food ? s.foodAt : ""; }],
       ["Food Given By", function (s) { return s.food ? s.foodBy : ""; }],
+      ["Post-evaluation Done", function (s) { return s.evalDone ? "YES" : "NO"; }],
+      ["Evaluation Source", function (s) { return s.evalSource === "manual" ? "Confirmed by staff (" + (s.evalBy || "") + ")" : (s.evalDone ? "Evaluation sheet" : ""); }],
       ["On Class List", function (s) { return s.inRoster ? "YES" : "NO"; }]
     ];
 
@@ -1564,6 +1692,7 @@
 
     $("foodFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
     $("regFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
+    $("evalFilter").addEventListener("change", function () { if (board) { renderTracker(); } });
 
     // Read the class lists again when the staff member comes back to this tab.
     document.addEventListener("visibilitychange", function () {
