@@ -202,6 +202,11 @@
 
     .progress-note { font-size: 13px; color: var(--muted); margin-top: 6px; }
 
+    /* A lone last card fills the row on phones */
+    @media (max-width: 560px) {
+      .stats .stat:last-child:nth-child(odd) { grid-column: 1 / -1; }
+    }
+
     /* ---- Stat cards ---- */
     .stats {
       display: grid;
@@ -247,11 +252,8 @@
     .stat.nofood .value { color: var(--red); }
     .stat.toilet { border-top-color: var(--cyan); }
     .stat.toilet .value { color: var(--cyan); }
-    .stat.lunch { border-top-color: var(--amber); }
-    .stat.lunch .value { color: var(--amber); }
     .stat.inroom { border-top-color: var(--green); }
     .stat.inroom .value { color: var(--green); }
-    .stat.trips { border-top-color: var(--muted); }
     .section-title { margin: 6px 0 10px; font-size: 18px; }
 
     .progress-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
@@ -356,7 +358,7 @@
       margin-left: 6px;
       padding: 1px 8px;
       border-radius: 99px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: bold;
       background: rgba(109, 40, 217, 0.15);
       color: var(--purple);
@@ -456,8 +458,8 @@
         <div class="progress-note" id="noteVenue">Waiting for data...</div>
       </div>
 
-      <!-- TOILET AND LUNCH BREAKS -->
-      <h2 class="section-title">Toilet &amp; lunch breaks</h2>
+      <!-- TOILET BREAKS -->
+      <h2 class="section-title">Toilet breaks</h2>
       <div class="stats">
         <div class="stat toilet">
           <div class="label">On toilet break</div>
@@ -465,28 +467,10 @@
           <div class="hint">Out of the room right now</div>
         </div>
 
-        <div class="stat lunch">
-          <div class="label">On lunch break</div>
-          <div class="value" id="nOnLunch">&ndash;</div>
-          <div class="hint">Out of the room right now</div>
-        </div>
-
         <div class="stat inroom">
           <div class="label">In the room now</div>
           <div class="value" id="nInRoom">&ndash;</div>
           <div class="hint" id="hintInRoom">Inside minus those on a break</div>
-        </div>
-
-        <div class="stat trips">
-          <div class="label">Toilet trips today</div>
-          <div class="value" id="nToiletTotal">&ndash;</div>
-          <div class="hint">All toilet breaks taken</div>
-        </div>
-
-        <div class="stat trips">
-          <div class="label">Lunch breaks today</div>
-          <div class="value" id="nLunchTotal">&ndash;</div>
-          <div class="hint">All lunch breaks taken</div>
         </div>
       </div>
 
@@ -501,7 +485,7 @@
         <div class="stat walkin">
           <div class="label">Walk-in registered</div>
           <div class="value" id="nWalkIn">&ndash;</div>
-          <div class="hint">Included in the total. No free food.</div>
+          <div class="hint">Included in the total</div>
         </div>
 
         <div class="stat checkedin">
@@ -531,7 +515,7 @@
         <div class="stat nofood">
           <div class="label">Food not yet</div>
           <div class="value" id="nFoodNotYet">&ndash;</div>
-          <div class="hint">Pre-registered, checked in, no food yet</div>
+          <div class="hint">Checked in, no food yet</div>
         </div>
       </div>
 
@@ -553,6 +537,39 @@
           <div class="bar teal"><div id="barFood"></div></div>
           <div class="progress-note" id="noteFood">Waiting for data...</div>
         </div>
+      </div>
+
+      <!-- POST-EVENT EVALUATION -->
+      <h2 class="section-title">Post-event evaluation</h2>
+      <div id="evalBanner" class="error-banner hidden" role="alert"></div>
+
+      <div class="stats">
+        <div class="stat checkedin">
+          <div class="label">Answered</div>
+          <div class="value" id="nEvalAnswered">&ndash;</div>
+          <div class="hint" id="hintEvalAnswered">Checked-in participants who answered</div>
+        </div>
+
+        <div class="stat waiting">
+          <div class="label">Not yet answered</div>
+          <div class="value" id="nEvalNotYet">&ndash;</div>
+          <div class="hint">Checked in, no evaluation yet</div>
+        </div>
+
+        <div class="stat registered">
+          <div class="label">Responses in the sheet</div>
+          <div class="value" id="nEvalResponses">&ndash;</div>
+          <div class="hint">All rows in the evaluation sheet</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="progress-title">
+          <span>Post-evaluation progress</span>
+          <span id="pctEval">0%</span>
+        </div>
+        <div class="bar green"><div id="barEval"></div></div>
+        <div class="progress-note" id="noteEval">Waiting for data...</div>
       </div>
 
       <!-- BY SECTION -->
@@ -612,6 +629,13 @@
             <span id="capacityMessage"></span>
           </div>
 
+          <div class="capacity-row">
+            <label for="foodStockInput">Free food in stock</label>
+            <input id="foodStockInput" type="number" min="0" step="1" placeholder="e.g. 235">
+            <button id="foodStockButton" type="button" onclick="saveFoodStock()">Save</button>
+            <span id="foodStockMessage"></span>
+          </div>
+
           <div class="downloads">
             <div class="label">Download files (CSV, opens in Excel or Google Sheets)</div>
             <button type="button" onclick="downloadFile('attendance')">Attendance (who entered)</button>
@@ -631,7 +655,8 @@
             <button class="tab" type="button" data-tab="foodnotyet">Food not yet <span class="n" id="tabFoodNotYet"></span></button>
             <button class="tab" type="button" data-tab="walkin">Walk-in <span class="n" id="tabWalkIn"></span></button>
             <button class="tab" type="button" data-tab="ontoilet">On toilet break <span class="n" id="tabOnToilet"></span></button>
-            <button class="tab" type="button" data-tab="onlunch">On lunch break <span class="n" id="tabOnLunch"></span></button>
+            <button class="tab" type="button" data-tab="evaluated">Evaluated <span class="n" id="tabEvaluated"></span></button>
+            <button class="tab" type="button" data-tab="notevaluated">Not yet evaluated <span class="n" id="tabNotEvaluated"></span></button>
           </div>
 
           <div class="list-tools">
@@ -646,10 +671,11 @@
 
       <p class="footnote">
         Numbers update automatically every 10 seconds. The total registered count includes walk-in
-        registrations. "Inside" means checked in and not yet checked out. Walk-in registrations are not
-        eligible for free food, so "Food not yet" counts only pre-registered participants who checked in.
-        People on a toilet or lunch break still count as inside the venue for the capacity total;
-        "In the room now" shows who is physically present.
+        registrations. "Inside" means checked in and not yet checked out. Everyone who has checked in
+        (pre-registered or walk-in) can receive free food, so "Food not yet" counts the checked-in
+        participants who have not received food. People on a toilet break still count as inside the venue
+        for the capacity total; "In the room now" shows who is physically present. A participant must
+        answer the post-event evaluation before they can check out.
       </p>
     </main>
   </div>
@@ -842,7 +868,7 @@
       const c = result.counts;
 
       // Older Code.gs versions do not send walk-in or section numbers.
-      if (!c || typeof c.walkIn !== "number" || typeof c.onBreak !== "number" || !Array.isArray(result.sections)) {
+      if (!c || typeof c.walkIn !== "number" || typeof c.onBreak !== "number" || typeof c.evalAnswered !== "number" || !Array.isArray(result.sections)) {
         showError(UPDATE_MESSAGE);
         return;
       }
@@ -864,11 +890,27 @@
       $("nFoodNotYet").textContent = c.foodNotYet;
 
       $("nOnToilet").textContent = c.onToilet;
-      $("nOnLunch").textContent = c.onLunch;
       $("nInRoom").textContent = c.inRoom;
       $("hintInRoom").textContent = c.inside + " inside - " + c.onBreak + " on a break";
-      $("nToiletTotal").textContent = c.toiletBreaks;
-      $("nLunchTotal").textContent = c.lunchBreaks;
+
+      $("nEvalAnswered").textContent = c.evalAnswered;
+      $("hintEvalAnswered").textContent = "of " + c.checkedIn + " checked in";
+      $("nEvalNotYet").textContent = c.evalNotYet;
+      $("nEvalResponses").textContent = c.evalResponses;
+
+      const evalPct = pct(c.evalAnswered, c.checkedIn);
+      $("pctEval").textContent = evalPct + "%";
+      $("barEval").style.width = evalPct + "%";
+      $("noteEval").textContent = c.evalAnswered + " of " + c.checkedIn + " checked-in participants answered";
+
+      const evalBanner = $("evalBanner");
+
+      if (result.evalError) {
+        evalBanner.textContent = "The post-event evaluation sheet could not be read: " + result.evalError + ".";
+        evalBanner.classList.remove("hidden");
+      } else {
+        evalBanner.classList.add("hidden");
+      }
 
       // Turn the food-stock card red when stock is almost gone (10% or less).
       $("foodLeftCard").className =
@@ -894,7 +936,8 @@
       $("tabFoodNotYet").textContent = "(" + c.foodNotYet + ")";
       $("tabWalkIn").textContent = "(" + c.walkIn + ")";
       $("tabOnToilet").textContent = "(" + c.onToilet + ")";
-      $("tabOnLunch").textContent = "(" + c.onLunch + ")";
+      $("tabEvaluated").textContent = "(" + c.evalAnswered + ")";
+      $("tabNotEvaluated").textContent = "(" + c.evalNotYet + ")";
 
       renderVenue(c);
       renderSections();
@@ -906,6 +949,10 @@
       if (pin && result.people) {
         if (document.activeElement !== $("capacityInput")) {
           $("capacityInput").value = c.capacity > 0 ? c.capacity : "";
+        }
+
+        if (document.activeElement !== $("foodStockInput")) {
+          $("foodStockInput").value = c.foodLimit;
         }
 
         renderList();
@@ -1027,8 +1074,7 @@
       foot.appendChild(totalRow);
 
       $("sectionNote").textContent =
-        "Food not yet counts only pre-registered participants who have checked in. " +
-        "Walk-in registrations are not eligible for free food.";
+        "Food not yet counts the participants who checked in and have not received food.";
     }
 
     // ---------- Participant lists (from the PIN-protected data) ----------
@@ -1077,11 +1123,19 @@
           .map(function (p) { return { p: p, when: "Arrived " + p.arr }; });
       }
 
-      if (activeTab === "ontoilet" || activeTab === "onlunch") {
-        const kind = activeTab === "ontoilet" ? "TOILET" : "LUNCH";
+      if (activeTab === "evaluated" || activeTab === "notevaluated") {
+        const wanted = activeTab === "evaluated";
 
+        return arrived.filter(function (p) { return !!p.ev === wanted; })
+          .sort(byTextDesc("arr"))
+          .map(function (p) {
+            return { p: p, when: wanted ? "Evaluation answered" : "Arrived " + p.arr };
+          });
+      }
+
+      if (activeTab === "ontoilet") {
         // Longest time away first.
-        return arrived.filter(function (p) { return p.brk === kind && !p.out; })
+        return arrived.filter(function (p) { return p.brk === "TOILET" && !p.out; })
           .sort(function (a, b) { return (b.brkMins || 0) - (a.brkMins || 0); })
           .map(function (p) {
             const m = /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2})/.exec(String(p.brkSince));
@@ -1180,8 +1234,8 @@
       ["Check-out Time", function (p) { return p.outAt; }],
       ["Checked Out By", function (p) { return p.outBy; }],
       ["Toilet Breaks", function (p) { return p.tb; }],
-      ["Lunch Breaks", function (p) { return p.lb; }],
-      ["On Break Now", function (p) { return p.brk || "NO"; }]
+      ["On Break Now", function (p) { return p.brk || "NO"; }],
+      ["Post Evaluation Done", function (p) { return p.ev ? "YES" : "NO"; }]
     ];
 
     function csvCell(value) {
@@ -1263,7 +1317,7 @@
         "Downloaded " + count + " row" + (count === 1 ? "" : "s") + ".";
     }
 
-    // Every toilet / lunch scan saved in the Break Log sheet.
+    // Every toilet scan saved in the Break Log sheet.
     function downloadBreakLog() {
       if (!pin) {
         $("downloadMessage").textContent = "Unlock the lists first.";
@@ -1330,6 +1384,38 @@
         .catch(function (error) {
           $("capacityButton").disabled = false;
           $("capacityMessage").textContent =
+            (error && error.message) || "Connection problem.";
+        });
+    }
+
+    // Staff saves how much free food is in stock (PIN required).
+    function saveFoodStock() {
+      const raw = $("foodStockInput").value.trim();
+
+      if (raw === "" || isNaN(Number(raw)) || Number(raw) < 0) {
+        $("foodStockMessage").textContent = "Enter a number (0 or more).";
+        return;
+      }
+
+      $("foodStockButton").disabled = true;
+      $("foodStockMessage").textContent = "Saving...";
+
+      callApi("setFoodStock", [pin, Number(raw)])
+        .then(function (result) {
+          $("foodStockButton").disabled = false;
+
+          if (!result || !result.success) {
+            $("foodStockMessage").textContent =
+              (result && result.message) || "Could not save the food stock.";
+            return;
+          }
+
+          $("foodStockMessage").textContent = "Saved: " + result.foodStock + " in stock";
+          refresh();
+        })
+        .catch(function (error) {
+          $("foodStockButton").disabled = false;
+          $("foodStockMessage").textContent =
             (error && error.message) || "Connection problem.";
         });
     }
