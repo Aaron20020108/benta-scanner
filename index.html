@@ -180,6 +180,25 @@
       color: #fff;
     }
 
+    .action-buttons .selected-move {
+      background: #0f766e;
+      color: #fff;
+    }
+
+    /* The fifth task fills the last row */
+    .action-buttons button:last-child:nth-child(odd) {
+      grid-column: 1 / -1;
+    }
+
+    /* Venue / holding area choice for check-in */
+    .location-picker { margin: 0 0 12px; }
+    .location-picker .lp-title { font-weight: bold; font-size: 14px; margin-bottom: 6px; }
+    .lp-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .lp-btn { margin: 0; min-height: 52px; }
+    .lp-btn.on-venue { background: #15803d; color: #fff; }
+    .lp-btn.on-holding { background: #b45309; color: #fff; }
+    .lp-btn.off { background: #e7edf5; color: #17365f; }
+
 
 
     .action-buttons .selected-checkin {
@@ -223,6 +242,11 @@
     .action-banner.toilet {
       background: #cffafe;
       color: #155e75;
+    }
+
+    .action-banner.move {
+      background: #ccfbf1;
+      color: #115e59;
     }
 
 
@@ -524,10 +548,28 @@
         >
           Toilet Break<br>(Out / In)
         </button>
+
+        <button
+          id="actionMove"
+          class="unselected"
+          type="button"
+          onclick="setAction('move')"
+        >
+          Move to Venue<br>(from the holding area)
+        </button>
       </div>
 
       <div id="actionBanner" class="action-banner checkin">
-        Current task: ATTENDANCE CHECK-IN
+        Current task: ATTENDANCE CHECK-IN → VENUE
+      </div>
+
+      <!-- Where a checked-in participant goes (check-in task only) -->
+      <div id="locationPicker" class="location-picker">
+        <div class="lp-title">Send checked-in participants to:</div>
+        <div class="lp-buttons">
+          <button id="locVenue" class="lp-btn on-venue" type="button" onclick="setLocation('VENUE')">Venue</button>
+          <button id="locHolding" class="lp-btn off" type="button" onclick="setLocation('HOLDING')">Holding area</button>
+        </div>
       </div>
 
       <div class="mode-buttons">
@@ -695,6 +737,15 @@
     <div id="result" role="status" aria-live="polite"></div>
 
     <button
+      id="holdingRetry"
+      class="secondary hidden"
+      type="button"
+      onclick="sendToHolding()"
+    >
+      The venue is full: send to the HOLDING AREA instead
+    </button>
+
+    <button
       id="nextButton"
       class="secondary hidden"
       type="button"
@@ -716,7 +767,9 @@
     let requestPending = false;
     let staffPinValidated = false;
     let activeMode = "camera";
-    let activeAction = "checkin";   // "checkin", "food", "checkout" or "toilet"
+    let activeAction = "checkin";   // "checkin", "food", "checkout", "toilet" or "move"
+    let checkinLocation = "VENUE";  // where check-ins go: "VENUE" or "HOLDING"
+    let lastReference = "";         // last scanned code (for the holding area shortcut)
 
     // The tasks the scanner can do. Every task accepts the registration QR code
     // OR the student's TUP ID QR code (or a typed Student ID).
@@ -726,9 +779,10 @@
         selected: "selected-checkin",
         banner: "Current task: ATTENDANCE CHECK-IN",
         title: "Attendance check-in mode",
-        text: "Scan the registration QR code or the TUP ID QR code. The student must have a pre-registration or a walk-in registration.",
+        text: "Choose Venue or Holding area, then scan the registration QR code or the TUP ID QR code. The student must have a pre-registration or a walk-in registration.",
         verb: "Check in",
-        fn: "checkInParticipant"
+        fn: "checkInParticipant",
+        locationArg: true
       },
       food: {
         button: "actionFood",
@@ -757,10 +811,55 @@
         verb: "Toilet break out / in",
         fn: "tagBreak",
         breakType: "TOILET"
+      },
+      move: {
+        button: "actionMove",
+        selected: "selected-move",
+        banner: "Current task: MOVE TO VENUE (from the holding area)",
+        title: "Move to venue mode",
+        text: "Scan the registration QR code or the TUP ID QR code of a participant waiting in the holding area. They are let into the venue only if it has space.",
+        verb: "Move to venue",
+        fn: "moveToVenue"
       }
     };
 
-    // Switch between the four tasks.
+    function bannerText() {
+      const base = ACTIONS[activeAction].banner;
+
+      if (activeAction === "checkin") {
+        return base + (checkinLocation === "HOLDING" ? " → HOLDING AREA" : " → VENUE");
+      }
+
+      return base;
+    }
+
+    // Venue or holding area for the next check-ins.
+    function setLocation(location) {
+      checkinLocation = location === "HOLDING" ? "HOLDING" : "VENUE";
+
+      document.getElementById("locVenue").className =
+        "lp-btn " + (checkinLocation === "VENUE" ? "on-venue" : "off");
+
+      document.getElementById("locHolding").className =
+        "lp-btn " + (checkinLocation === "HOLDING" ? "on-holding" : "off");
+
+      if (activeAction === "checkin") {
+        document.getElementById("actionBanner").textContent = bannerText();
+      }
+    }
+
+    // One tap after "venue is full": check the same person in to the holding area.
+    function sendToHolding() {
+      if (!lastReference || requestPending) {
+        return;
+      }
+
+      setLocation("HOLDING");
+      document.getElementById("holdingRetry").classList.add("hidden");
+      submitCheckIn(lastReference);
+    }
+
+    // Switch between the tasks.
     function setAction(action) {
       if (requestPending) {
         return;
@@ -775,7 +874,12 @@
 
       const banner = document.getElementById("actionBanner");
       banner.className = "action-banner " + activeAction;
-      banner.textContent = ACTIONS[activeAction].banner;
+      banner.textContent = bannerText();
+
+      document.getElementById("locationPicker")
+        .classList.toggle("hidden", activeAction !== "checkin");
+
+      document.getElementById("holdingRetry").classList.add("hidden");
 
       // The manual entry buttons follow the task.
       const verb = ACTIONS[activeAction].verb;
@@ -920,15 +1024,36 @@
         data.breaksTaken
           ? ["Breaks taken today: " + data.breaksTaken]
           : [],
-        typeof data.inside === "number"
-          ? [insideLine(data)]
-          : []
+        data.location
+          ? ["Location: " + (data.location === "HOLDING" ? "Holding area" : "Venue")]
+          : [],
+        typeof data.venueCount === "number"
+          ? [venueLine(data)]
+          : (typeof data.inside === "number" ? ["Checked in and inside: " + data.inside] : [])
       ).join("\n");
     }
 
-    // "Inside venue now: 42" (venue capacity is shown on the monitor only).
-    function insideLine(data) {
-      return "Inside venue now: " + data.inside;
+    // "Venue: 150 / 200  |  Holding area: 12" so staff can see the over-capacity situation.
+    function venueLine(data) {
+      let line = "Venue: " + data.venueCount;
+
+      if (data.capacity > 0) {
+        line += " / " + data.capacity;
+      }
+
+      line += "  |  Holding area: " + data.holdingCount;
+
+      if (data.capacity > 0) {
+        if (data.venueCount > data.capacity) {
+          line += "  - OVER CAPACITY!";
+        } else if (data.venueCount === data.capacity) {
+          line += "  - VENUE FULL";
+        } else if (data.venueCount >= data.capacity * 0.9) {
+          line += "  - almost full";
+        }
+      }
+
+      return line;
     }
 
     function successTitle(data) {
@@ -948,6 +1073,14 @@
         return "BACK FROM TOILET BREAK — IN";
       }
 
+      if (data.status === "MOVED_TO_VENUE") {
+        return "MOVED INTO THE VENUE";
+      }
+
+      if (data.location === "HOLDING") {
+        return "CHECKED IN — HOLDING AREA";
+      }
+
       return "PRESENT — Check-in successful!";
     }
 
@@ -956,6 +1089,7 @@
       return status === "DUPLICATE" ||
              status === "FOOD_ALREADY" ||
              status === "CHECKOUT_ALREADY" ||
+             status === "ALREADY_IN_VENUE" ||
              status === "TOO_SOON";
     }
 
@@ -972,6 +1106,10 @@
         return "JUST SCANNED — wait a few seconds";
       }
 
+      if (data.status === "ALREADY_IN_VENUE") {
+        return "ALREADY IN THE VENUE";
+      }
+
       return "ALREADY CHECKED IN";
     }
 
@@ -983,7 +1121,17 @@
         return "NOT REGISTERED — register first";
       }
 
+      if (status === "VENUE_FULL") {
+        return activeAction === "move"
+          ? "VENUE IS FULL — keep in the holding area"
+          : "VENUE IS FULL — use the holding area";
+      }
+
       if (status === "NOT_CHECKED_IN") {
+        if (activeAction === "move") {
+          return "NOT CHECKED IN — check in first";
+        }
+
         if (activeAction === "checkout") {
           return "NEVER CHECKED IN";
         }
@@ -1506,7 +1654,9 @@
       }
 
       requestPending = true;
+      lastReference = reference;
 
+      document.getElementById("holdingRetry").classList.add("hidden");
       document.getElementById("cameraButton").disabled = true;
       document.getElementById("checkInButton").disabled = true;
       document.getElementById("studentIdButton").disabled = true;
@@ -1530,7 +1680,10 @@
 
           if (data && data.success) {
             showResult(
-              data.status === "BREAK_OUT" ? "duplicate" : "present",
+              (data.status === "BREAK_OUT" ||
+               (data.status === "PRESENT" && data.location === "HOLDING"))
+                ? "duplicate"
+                : "present",
               successTitle(data),
               participantDetails(data)
             );
@@ -1560,6 +1713,11 @@
                 ? "\n" + participantDetails(data)
                 : "")
             );
+
+            // Venue full at check-in: one tap sends the same person to the holding area.
+            if (data && data.status === "VENUE_FULL" && activeAction === "checkin") {
+              document.getElementById("holdingRetry").classList.remove("hidden");
+            }
           }
 
           document.getElementById("nextButton")
@@ -1589,6 +1747,10 @@
 
       if (ACTIONS[activeAction].breakType) {
         callArgs.push(ACTIONS[activeAction].breakType);
+      }
+
+      if (ACTIONS[activeAction].locationArg) {
+        callArgs.push(checkinLocation);
       }
 
       runner[ACTIONS[activeAction].fn].apply(runner, callArgs);
