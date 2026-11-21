@@ -431,7 +431,7 @@
       <div id="venueCard" class="card venue none">
         <div class="venue-main">
           <div>
-            <div class="label">Inside the venue now</div>
+            <div class="label">In the venue now</div>
             <div class="venue-number">
               <span id="nInside">&ndash;</span><span class="cap"> / <span id="nCapacity">&ndash;</span></span>
             </div>
@@ -440,11 +440,15 @@
 
           <div class="venue-side">
             <div>
+              <div class="label">In the holding area</div>
+              <div class="mid" id="nHolding">&ndash;</div>
+            </div>
+            <div>
               <div class="label">Left the event</div>
               <div class="mid" id="nLeft">&ndash;</div>
             </div>
             <div>
-              <div class="label">Peak inside</div>
+              <div class="label">Peak in venue</div>
               <div class="mid" id="nPeak">&ndash;</div>
             </div>
             <div>
@@ -470,7 +474,7 @@
         <div class="stat inroom">
           <div class="label">In the room now</div>
           <div class="value" id="nInRoom">&ndash;</div>
-          <div class="hint" id="hintInRoom">Inside minus those on a break</div>
+          <div class="hint" id="hintInRoom">In the venue minus those on a break</div>
         </div>
       </div>
 
@@ -650,6 +654,8 @@
             <button class="tab active" type="button" data-tab="waiting">Waiting <span class="n" id="tabWaiting"></span></button>
             <button class="tab" type="button" data-tab="checkedin">Checked in <span class="n" id="tabCheckedIn"></span></button>
             <button class="tab" type="button" data-tab="inside">Inside now <span class="n" id="tabInside"></span></button>
+            <button class="tab" type="button" data-tab="invenue">In the venue <span class="n" id="tabInVenue"></span></button>
+            <button class="tab" type="button" data-tab="holding">Holding area <span class="n" id="tabHolding"></span></button>
             <button class="tab" type="button" data-tab="left">Left <span class="n" id="tabLeft"></span></button>
             <button class="tab" type="button" data-tab="foodgiven">Food provided <span class="n" id="tabFoodGiven"></span></button>
             <button class="tab" type="button" data-tab="foodnotyet">Food not yet <span class="n" id="tabFoodNotYet"></span></button>
@@ -671,7 +677,8 @@
 
       <p class="footnote">
         Numbers update automatically every 10 seconds. The total registered count includes walk-in
-        registrations. "Inside" means checked in and not yet checked out. Everyone who has checked in
+        registrations. "Inside" means checked in and not yet checked out; it is split into the venue and the
+        holding area, and only the venue counts toward the capacity. Everyone who has checked in
         (pre-registered or walk-in) can receive free food, so "Food not yet" counts the checked-in
         participants who have not received food. People on a toilet break still count as inside the venue
         for the capacity total; "In the room now" shows who is physically present. A participant must
@@ -868,7 +875,7 @@
       const c = result.counts;
 
       // Older Code.gs versions do not send walk-in or section numbers.
-      if (!c || typeof c.walkIn !== "number" || typeof c.onBreak !== "number" || typeof c.evalAnswered !== "number" || !Array.isArray(result.sections)) {
+      if (!c || typeof c.walkIn !== "number" || typeof c.onBreak !== "number" || typeof c.inVenue !== "number" || typeof c.evalAnswered !== "number" || !Array.isArray(result.sections)) {
         showError(UPDATE_MESSAGE);
         return;
       }
@@ -891,7 +898,7 @@
 
       $("nOnToilet").textContent = c.onToilet;
       $("nInRoom").textContent = c.inRoom;
-      $("hintInRoom").textContent = c.inside + " inside - " + c.onBreak + " on a break";
+      $("hintInRoom").textContent = c.inVenue + " in the venue - " + c.onBreak + " on a break";
 
       $("nEvalAnswered").textContent = c.evalAnswered;
       $("hintEvalAnswered").textContent = "of " + c.checkedIn + " checked in";
@@ -931,6 +938,8 @@
       $("tabWaiting").textContent = "(" + c.waiting + ")";
       $("tabCheckedIn").textContent = "(" + c.checkedIn + ")";
       $("tabInside").textContent = "(" + c.inside + ")";
+      $("tabInVenue").textContent = "(" + c.inVenue + ")";
+      $("tabHolding").textContent = "(" + c.inHolding + ")";
       $("tabLeft").textContent = "(" + c.left + ")";
       $("tabFoodGiven").textContent = "(" + c.foodGiven + ")";
       $("tabFoodNotYet").textContent = "(" + c.foodNotYet + ")";
@@ -959,7 +968,8 @@
       }
     }
 
-    // Venue occupancy against capacity.
+    // Venue occupancy against capacity. Only people in the venue count;
+    // people waiting in the holding area are shown separately.
     function renderVenue(c) {
       const capacity = c.capacity > 0 ? c.capacity : 0;
       let state = "none";
@@ -968,13 +978,13 @@
       let percent = 0;
 
       if (capacity > 0) {
-        percent = Math.round((c.inside / capacity) * 100);
-        spaces = Math.max(capacity - c.inside, 0);
+        percent = Math.round((c.inVenue / capacity) * 100);
+        spaces = Math.max(capacity - c.inVenue, 0);
 
-        if (c.inside > capacity) {
+        if (c.inVenue > capacity) {
           state = "over";
-          label = "OVER CAPACITY by " + (c.inside - capacity);
-        } else if (c.inside === capacity) {
+          label = "OVER CAPACITY by " + (c.inVenue - capacity);
+        } else if (c.inVenue === capacity) {
           state = "full";
           label = "VENUE FULL";
         } else if (percent >= 90) {
@@ -987,7 +997,8 @@
       }
 
       $("venueCard").className = "card venue " + state;
-      $("nInside").textContent = c.inside;
+      $("nInside").textContent = c.inVenue;
+      $("nHolding").textContent = c.inHolding;
       $("nCapacity").textContent = capacity > 0 ? capacity : "no limit";
       $("nLeft").textContent = c.left;
       $("nPeak").textContent = c.peak;
@@ -997,8 +1008,12 @@
 
       let note = capacity > 0
         ? percent + "% of the venue capacity is in use" +
-          (c.onBreak > 0 ? " (" + c.onBreak + " of them are out on a break)" : "")
+          (c.onBreak > 0 ? " (" + c.onBreak + " people are out on a break)" : "")
         : "No limit is set. Unlock the lists below with the staff PIN to set the venue capacity.";
+
+      if (c.inHolding > 0) {
+        note += ". " + c.inHolding + " waiting in the holding area";
+      }
 
       // Registration is not limited, so registrations can exceed the venue.
       if (capacity > 0 && c.registered > capacity) {
@@ -1100,6 +1115,16 @@
       if (activeTab === "checkedin") {
         return arrived.slice().sort(byTextDesc("arr"))
           .map(function (p) { return { p: p, when: "Arrived " + p.arr }; });
+      }
+
+      if (activeTab === "invenue" || activeTab === "holding") {
+        const wantHolding = activeTab === "holding";
+
+        return arrived.filter(function (p) { return !p.out && (p.loc === "HOLDING") === wantHolding; })
+          .sort(byTextDesc("arr"))
+          .map(function (p) {
+            return { p: p, when: (wantHolding ? "Waiting since " : "Arrived ") + p.arr };
+          });
       }
 
       if (activeTab === "inside") {
@@ -1234,6 +1259,7 @@
       ["Check-out Time", function (p) { return p.outAt; }],
       ["Checked Out By", function (p) { return p.outBy; }],
       ["Toilet Breaks", function (p) { return p.tb; }],
+      ["Location", function (p) { return p.arr ? (p.loc === "HOLDING" ? "Holding area" : "Venue") : ""; }],
       ["On Break Now", function (p) { return p.brk || "NO"; }],
       ["Post Evaluation Done", function (p) { return p.ev ? "YES" : "NO"; }]
     ];
