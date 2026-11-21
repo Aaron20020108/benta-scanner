@@ -293,6 +293,8 @@
     }
     .toolbar { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; align-items: center; }
     .toolbar button { min-height: 44px; font-size: 14px; padding: 10px 14px; }
+    .downloads { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); align-items: center; }
+    .downloads button { min-height: 44px; font-size: 14px; padding: 10px 14px; }
 
     .student-row {
       display: flex;
@@ -317,7 +319,7 @@
 
     @media print {
       body { background: #fff; color: #000; padding: 0; }
-      header, .main-tabs, #lookupPanel, .filters, .toolbar, #login { display: none !important; }
+      header, .main-tabs, #lookupPanel, .filters, .toolbar, .downloads, #login { display: none !important; }
       .print-title { display: block; margin-bottom: 8px; }
       .card, .stat { box-shadow: none; border: 1px solid #999; }
       #studentList { max-height: none; overflow: visible; }
@@ -538,9 +540,18 @@
 
           <div class="toolbar">
             <button type="button" onclick="loadBoard(true)">Refresh</button>
-            <button type="button" onclick="downloadCsv()">Download CSV for the professor</button>
             <button type="button" class="secondary" onclick="window.print()">Print</button>
             <span id="boardInfo" class="muted small"></span>
+          </div>
+
+          <div class="downloads">
+            <div class="muted small" style="width:100%;">
+              Download for the professor (uses the Section chosen above, or all sections):
+            </div>
+            <button type="button" onclick="downloadWord('event')">Event attendance (Word)</button>
+            <button type="button" onclick="downloadWord('food')">Food attendance (Word)</button>
+            <button type="button" class="secondary" onclick="downloadCsv()">All details (CSV)</button>
+            <span id="downloadMessage" class="muted small"></span>
           </div>
 
           <div id="tabsInfo" class="muted small" style="margin-top:10px;"></div>
@@ -1144,6 +1155,7 @@
       [
         ["Check-in", s.arr ? shortTime(s.arr) : "None"],
         ["Check-out", s.out ? shortTime(s.outAt) : "None"],
+        ["Location", !s.arr ? "Not checked in" : (s.out ? "Left the event" : (s.loc === "HOLDING" ? "Holding area" : "Venue"))],
         ["Free food", s.food ? "Provided " + shortTime(s.foodAt) : "Not yet"],
         ["Post-evaluation", s.evalDone ? (s.evalSource === "manual" ? "Done (staff)" : "Done") : "Not yet"],
         ["Registration", regInfo(s).short],
@@ -1516,7 +1528,7 @@
         const times = document.createElement("div");
         times.className = "times";
         times.textContent = s.arr
-          ? "In " + shortTime(s.arr) + (s.out ? "  Out " + shortTime(s.outAt) : (s.brk ? "  On " + s.brk.toLowerCase() + " break" : ""))
+          ? "In " + shortTime(s.arr) + (s.out ? "  Out " + shortTime(s.outAt) : (s.brk ? "  On toilet break" : "") + (s.loc === "HOLDING" ? "  Holding area" : ""))
           : "No check-in";
         right.appendChild(times);
 
@@ -1563,6 +1575,7 @@
       ["Change Note", function (s) { return s.override ? s.override.note : ""; }],
       ["Check-in Time", function (s) { return s.arr; }],
       ["Check-out Time", function (s) { return s.out ? s.outAt : ""; }],
+      ["Location", function (s) { return !s.arr ? "" : (s.out ? "Left" : (s.loc === "HOLDING" ? "Holding area" : "Venue")); }],
       ["On Break Now", function (s) { return s.brk || "NO"; }],
       ["Toilet Breaks", function (s) { return s.tb; }],
       ["Food Provided", function (s) { return s.food ? "YES" : "NO"; }],
@@ -1621,6 +1634,437 @@
       setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
 
       $("boardInfo").textContent = "Downloaded " + rows.length + " row" + (rows.length === 1 ? "" : "s") + ".";
+    }
+
+    // ---------- Word downloads: food attendance and event attendance ----------
+    // The header copies the TUP / CMMS template. Edit the text here to change it.
+    // To show the logo, upload a file named logo.png next to status.html in the repo.
+    const TEMPLATE = {
+      headerLines: [
+        { text: "TECHNOLOGICAL UNIVERSITY OF THE PHILIPPINES", bold: true, size: 26 },
+        { text: "COLLEGE OF MANAGEMENT AND MULTIDISCIPLINARY STUDIES", bold: true, size: 22 },
+        { text: "DEPARTMENT OF ENTREPRENEURSHIP", bold: true, size: 22 },
+        { text: "Ayala Boulevard, Ermita, Manila, 1000", size: 18 },
+        { text: "Email: cmms@tup.edu.ph", size: 18 }
+      ],
+      referenceName: "Aaron Clarence E. Lazaro",   // "Reference Name" box
+      indexNo: "",                                  // "Page No. / Index No." box, for example REF-CMMS-INT-SCT-R04-110
+      eventName: "BENTA: Building Entrepreneurs, Nurturing their Tactics, and Achieving Business Success",
+      venue: "ADMIN - AVR",
+      preparedBy: "",
+      notedBy: "",
+      logoFile: "logo.png"
+    };
+
+    const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const PAGE_WIDTH = 15398;   // A4 landscape width minus margins, in twips
+
+    let logoCache;              // undefined = not tried yet, null = no logo file
+
+    function loadLogo() {
+      if (logoCache !== undefined) {
+        return Promise.resolve(logoCache);
+      }
+
+      return fetch(TEMPLATE.logoFile)
+        .then(function (response) {
+          if (!response.ok) { throw new Error("no logo"); }
+          return response.arrayBuffer();
+        })
+        .then(function (buffer) {
+          const bytes = new Uint8Array(buffer);
+          const isPng = bytes.length > 24 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E;
+
+          if (!isPng) { throw new Error("not a PNG"); }
+
+          const view = new DataView(buffer);
+          logoCache = { bytes: bytes, w: view.getUint32(16), h: view.getUint32(20) };
+          return logoCache;
+        })
+        .catch(function () {
+          logoCache = null;
+          return null;
+        });
+    }
+
+    // --- minimal ZIP writer (no compression) so the .docx can be built in the browser ---
+    const CRC_TABLE = (function () {
+      const table = [];
+
+      for (let n = 0; n < 256; n++) {
+        let c = n;
+        for (let k = 0; k < 8; k++) {
+          c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        }
+        table[n] = c >>> 0;
+      }
+
+      return table;
+    })();
+
+    function crc32(bytes) {
+      let c = 0xFFFFFFFF;
+
+      for (let i = 0; i < bytes.length; i++) {
+        c = CRC_TABLE[(c ^ bytes[i]) & 255] ^ (c >>> 8);
+      }
+
+      return (c ^ 0xFFFFFFFF) >>> 0;
+    }
+
+    function zipStore(files) {
+      const encoder = new TextEncoder();
+      const now = new Date();
+      const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+      const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+
+      const u16 = function (n) { return [n & 255, (n >> 8) & 255]; };
+      const u32 = function (n) { return [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255]; };
+
+      const locals = [];
+      const centrals = [];
+      let offset = 0;
+
+      files.forEach(function (file) {
+        const name = encoder.encode(file.name);
+        const crc = crc32(file.data);
+        const size = file.data.length;
+
+        const local = [0x50, 0x4B, 0x03, 0x04].concat(
+          u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+          u32(crc), u32(size), u32(size), u16(name.length), u16(0)
+        );
+
+        const central = [0x50, 0x4B, 0x01, 0x02].concat(
+          u16(20), u16(20), u16(0x0800), u16(0), u16(dosTime), u16(dosDate),
+          u32(crc), u32(size), u32(size), u16(name.length), u16(0), u16(0),
+          u16(0), u16(0), u32(0), u32(offset)
+        );
+
+        locals.push(new Uint8Array(local), name, file.data);
+        centrals.push(new Uint8Array(central), name);
+        offset += local.length + name.length + size;
+      });
+
+      const centralSize = centrals.reduce(function (sum, part) { return sum + part.length; }, 0);
+
+      const end = new Uint8Array([0x50, 0x4B, 0x05, 0x06].concat(
+        u16(0), u16(0), u16(files.length), u16(files.length),
+        u32(centralSize), u32(offset), u16(0)
+      ));
+
+      const parts = locals.concat(centrals, [end]);
+      const total = parts.reduce(function (sum, part) { return sum + part.length; }, 0);
+      const out = new Uint8Array(total);
+      let position = 0;
+
+      parts.forEach(function (part) {
+        out.set(part, position);
+        position += part.length;
+      });
+
+      return out;
+    }
+
+    // --- Word (WordprocessingML) building blocks ---
+    function xmlEscape(value) {
+      return String(value === null || value === undefined ? "" : value)
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function wRun(text, o) {
+      o = o || {};
+
+      return "<w:r><w:rPr>" + (o.bold ? "<w:b/>" : "") + (o.italic ? "<w:i/>" : "") +
+        '<w:sz w:val="' + (o.size || 20) + '"/></w:rPr><w:t xml:space="preserve">' +
+        xmlEscape(text) + "</w:t></w:r>";
+    }
+
+    function wPara(text, o) {
+      o = o || {};
+
+      return '<w:p><w:pPr><w:spacing w:before="' + (o.before || 0) + '" w:after="' +
+        (o.after === undefined ? 40 : o.after) + '"/><w:jc w:val="' + (o.align || "left") + '"/></w:pPr>' +
+        (text === "" ? "" : wRun(text, o)) + "</w:p>";
+    }
+
+    function wCell(content, width, o) {
+      o = o || {};
+
+      return '<w:tc><w:tcPr><w:tcW w:w="' + width + '" w:type="dxa"/>' +
+        (o.fill ? '<w:shd w:val="clear" w:color="auto" w:fill="' + o.fill + '"/>' : "") +
+        '<w:vAlign w:val="center"/></w:tcPr>' + content + "</w:tc>";
+    }
+
+    function wRow(cells, o) {
+      o = o || {};
+
+      return "<w:tr><w:trPr><w:cantSplit/>" + (o.header ? "<w:tblHeader/>" : "") + "</w:trPr>" +
+        cells.join("") + "</w:tr>";
+    }
+
+    function wTable(widths, rows, o) {
+      const total = widths.reduce(function (a, b) { return a + b; }, 0);
+
+      const borders = (o && o.noBorders)
+        ? "<w:tblBorders>" + ["top", "left", "bottom", "right", "insideH", "insideV"].map(function (n) {
+            return "<w:" + n + ' w:val="nil"/>';
+          }).join("") + "</w:tblBorders>"
+        : "<w:tblBorders>" + ["top", "left", "bottom", "right", "insideH", "insideV"].map(function (n) {
+            return "<w:" + n + ' w:val="single" w:sz="4" w:space="0" w:color="000000"/>';
+          }).join("") + "</w:tblBorders>";
+
+      return "<w:tbl><w:tblPr>" + '<w:tblW w:w="' + total + '" w:type="dxa"/>' + borders +
+        '<w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="80" w:type="dxa"/>' +
+        '<w:bottom w:w="40" w:type="dxa"/><w:right w:w="80" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>' +
+        widths.map(function (w) { return '<w:gridCol w:w="' + w + '"/>'; }).join("") +
+        "</w:tblGrid>" + rows.join("") + "</w:tbl>";
+    }
+
+    function wLogo(cx, cy) {
+      return '<w:p><w:pPr><w:spacing w:before="0" w:after="0"/></w:pPr><w:r><w:drawing>' +
+        '<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="' + cx + '" cy="' + cy + '"/>' +
+        '<wp:docPr id="1" name="Logo"/><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">' +
+        '<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="logo.png"/><pic:cNvPicPr/></pic:nvPicPr>' +
+        '<pic:blipFill><a:blip r:embed="rIdLogo"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>' +
+        '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + cx + '" cy="' + cy + '"/></a:xfrm>' +
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>' +
+        "</wp:inline></w:drawing></w:r></w:p>";
+    }
+
+    const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August",
+      "September", "October", "November", "December"];
+
+    function longDate(text) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(text || ""));
+
+      return m ? MONTHS[Number(m[2]) - 1] + " " + Number(m[3]) + ", " + m[1] : String(text || "");
+    }
+
+    // Builds the whole .docx file. opts: { title, columns:[{label,width}], rows:[[...]], info:[...], total }
+    function buildAttendanceDocx(opts, logo) {
+      const encoder = new TextEncoder();
+      const scale = PAGE_WIDTH / opts.columns.reduce(function (a, c) { return a + c.width; }, 0);
+      const widths = opts.columns.map(function (c) { return Math.round(c.width * scale); });
+      widths[widths.length - 1] += PAGE_WIDTH - widths.reduce(function (a, b) { return a + b; }, 0);
+
+      const headerParas = TEMPLATE.headerLines.map(function (line) {
+        return wPara(line.text, { bold: line.bold, size: line.size, align: "center", after: 20 });
+      }).join("");
+
+      let body = "";
+
+      if (logo) {
+        const cy = Math.round(914400 * 0.95);
+        const cx = Math.round(cy * logo.w / logo.h);
+
+        body += wTable([2200, PAGE_WIDTH - 2200], [
+          wRow([wCell(wLogo(cx, cy), 2200), wCell(headerParas, PAGE_WIDTH - 2200)])
+        ], { noBorders: true });
+      } else {
+        body += headerParas;
+      }
+
+      // "Reference Name" and "Page No. / Index No." box, as in the template
+      body += wPara("", { after: 60 });
+      body += wTable([3600, PAGE_WIDTH - 3600], [
+        wRow([wCell(wPara("Reference Name", { bold: true, size: 20, after: 0 }), 3600, { fill: "E7E6E6" }),
+              wCell(wPara(TEMPLATE.referenceName, { size: 20, after: 0 }), PAGE_WIDTH - 3600)]),
+        wRow([wCell(wPara("Page No. / Index No.", { bold: true, size: 20, after: 0 }), 3600, { fill: "E7E6E6" }),
+              wCell(wPara(TEMPLATE.indexNo, { size: 20, after: 0 }), PAGE_WIDTH - 3600)])
+      ]);
+
+      body += wPara(opts.title, { bold: true, size: 28, align: "center", before: 200, after: 80 });
+
+      opts.info.forEach(function (line) {
+        body += wPara(line, { size: 20, after: 20 });
+      });
+
+      body += wPara("", { after: 60 });
+
+      const headerRow = wRow(opts.columns.map(function (c, i) {
+        return wCell(wPara(c.label, { bold: true, size: 18, align: "center", after: 0 }), widths[i], { fill: "D9D9D9" });
+      }), { header: true });
+
+      const dataRows = opts.rows.map(function (row) {
+        return wRow(row.map(function (value, i) {
+          const align = opts.columns[i].center ? "center" : "left";
+          return wCell(wPara(value, { size: 18, align: align, after: 0 }), widths[i]);
+        }));
+      });
+
+      body += wTable(widths, [headerRow].concat(dataRows));
+      body += wPara(opts.total, { bold: true, size: 20, before: 120, after: 160 });
+
+      // Signature lines
+      const half = Math.floor(PAGE_WIDTH / 2);
+      const sign = function (label, name) {
+        return wPara(label, { size: 20, after: 360 }) +
+          wPara("______________________________", { size: 20, after: 0 }) +
+          wPara(name || "", { size: 18, after: 0 });
+      };
+
+      body += wTable([half, PAGE_WIDTH - half], [
+        wRow([wCell(sign("Prepared by:", TEMPLATE.preparedBy), half), wCell(sign("Noted by:", TEMPLATE.notedBy), PAGE_WIDTH - half)])
+      ], { noBorders: true });
+
+      const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
+        'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ' +
+        'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" ' +
+        'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" ' +
+        'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+
+      const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ' + ns + "><w:body>" + body +
+        '<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>' +
+        '<w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr>' +
+        "</w:body></w:document>";
+
+      const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>' +
+        '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/><w:sz w:val="20"/><w:szCs w:val="20"/>' +
+        '<w:lang w:val="en-PH"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/></w:pPr></w:pPrDefault>' +
+        '</w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>';
+
+      const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>' +
+        '<Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/>' +
+        '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' +
+        '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>';
+
+      const rootRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+
+      const docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
+        '<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>' +
+        (logo ? '<Relationship Id="rIdLogo" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/logo.png"/>' : "") +
+        "</Relationships>";
+
+      const files = [
+        { name: "[Content_Types].xml", data: encoder.encode(contentTypes) },
+        { name: "_rels/.rels", data: encoder.encode(rootRels) },
+        { name: "word/document.xml", data: encoder.encode(documentXml) },
+        { name: "word/styles.xml", data: encoder.encode(stylesXml) },
+        { name: "word/_rels/document.xml.rels", data: encoder.encode(docRels) }
+      ];
+
+      if (logo) {
+        files.push({ name: "word/media/logo.png", data: logo.bytes });
+      }
+
+      return zipStore(files);
+    }
+
+    function saveBlobFile(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+    }
+
+    // kind: "event" (who attended the event) or "food" (who received food)
+    function downloadWord(kind) {
+      if (!board) {
+        return;
+      }
+
+      const message = $("downloadMessage");
+      const section = $("sectionFilter").value;
+
+      const students = board.students.filter(function (s) {
+        return !section || s.section === section;
+      }).sort(function (a, b) {
+        return a.section.localeCompare(b.section, undefined, { numeric: true }) ||
+               String(a.name).localeCompare(String(b.name));
+      });
+
+      const date = longDate(board.generatedAt);
+      const where = section || "All sections";
+      let list;
+      let opts;
+
+      if (kind === "food") {
+        list = students.filter(function (s) { return s.food; });
+
+        opts = {
+          title: "FOOD DISTRIBUTION ATTENDANCE",
+          info: ["Event: " + TEMPLATE.eventName, "Venue: " + TEMPLATE.venue, "Date: " + date, "Section: " + where],
+          columns: [
+            { label: "No.", width: 700, center: true },
+            { label: "Student No.", width: 2300 },
+            { label: "Name of Student", width: 5600 },
+            { label: "Section", width: 1600 },
+            { label: "Time received", width: 2500, center: true },
+            { label: "Given by", width: 2698 }
+          ],
+          rows: list.map(function (s, i) {
+            return [String(i + 1), s.id, s.name, s.section, shortTime(s.foodAt), s.foodBy || ""];
+          }),
+          total: "Total who received food: " + list.length
+        };
+      } else {
+        list = students.filter(function (s) { return s.status !== "ABSENT"; });
+
+        opts = {
+          title: "EVENT ATTENDANCE",
+          info: ["Event: " + TEMPLATE.eventName, "Venue: " + TEMPLATE.venue, "Date: " + date, "Section: " + where],
+          columns: [
+            { label: "No.", width: 700, center: true },
+            { label: "Student No.", width: 2200 },
+            { label: "Name of Student", width: 4700 },
+            { label: "Section", width: 1500 },
+            { label: "Time in", width: 1300, center: true },
+            { label: "Time out", width: 1300, center: true },
+            { label: "Status", width: 1900 },
+            { label: "Remarks", width: 1798 }
+          ],
+          rows: list.map(function (s, i) {
+            const remark = s.override
+              ? "Marked by " + (s.override.by || "staff") + (s.override.note ? ": " + s.override.note : "")
+              : (s.brk ? "On toilet break since " + shortTime(s.brkSince) : "");
+
+            return [
+              String(i + 1), s.id, s.name, s.section,
+              s.arr ? shortTime(s.arr) : "",
+              s.out ? shortTime(s.outAt) : "",
+              s.status === "INCOMPLETE" ? "No check-out" : (s.status === "HALF_DAY" ? "Half Day" : "Present"),
+              remark
+            ];
+          }),
+          total: "Total who attended: " + list.length
+        };
+      }
+
+      if (list.length === 0) {
+        message.textContent = kind === "food"
+          ? "Nobody has received food yet for this selection."
+          : "Nobody has attended yet for this selection.";
+        return;
+      }
+
+      message.textContent = "Preparing the Word file...";
+
+      loadLogo().then(function (logo) {
+        const bytes = buildAttendanceDocx(opts, logo);
+        const stamp = String(board.generatedAt || "").slice(0, 10) || "date";
+        const name = "BENTA-" + (kind === "food" ? "food" : "event") + "-attendance-" +
+          (section ? section.replace(/\s+/g, "") : "all-sections") + "-" + stamp + ".docx";
+
+        saveBlobFile(new Blob([bytes], { type: DOCX_MIME }), name);
+        message.textContent = "Downloaded " + name + " (" + list.length + " row" + (list.length === 1 ? "" : "s") + ").";
+      });
     }
 
     // ---------- Change the staff PIN ----------
